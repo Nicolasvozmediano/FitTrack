@@ -1,0 +1,15 @@
+# Java
+target/
+
+# Node.js
+node_modules/
+
+# VS Code
+.vscode/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
