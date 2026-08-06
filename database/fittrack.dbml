@@ -1,0 +1,135 @@
+Table usuario {
+  id int [pk, increment]
+  nombre varchar
+  email varchar [unique]
+  contraseña varchar
+  fecha_registro date
+}
+
+Table rutina {
+  id int [pk, increment]
+  nombre varchar
+  descripcion text
+  fecha_creacion date
+  usuario_id int
+}
+
+Table ejercicio {
+  id int [pk, increment]
+  nombre varchar
+  grupo_muscular varchar
+  descripcion text
+}
+
+Table rutina_ejercicio {
+  id int [pk, increment]
+  rutina_id int
+  ejercicio_id int
+  orden int
+  series_objetivo int
+  repeticiones_objetivo int
+  descanso_segundos int
+}
+
+Table entrenamiento {
+  id int [pk, increment]
+  usuario_id int
+  rutina_id int
+  fecha datetime
+  duracion_minutos int
+  observaciones text
+}
+
+Table ejercicio_realizado {
+  id int [pk, increment]
+  entrenamiento_id int
+  ejercicio_id int
+}
+
+Table serie {
+  id int [pk, increment]
+  ejercicio_realizado_id int
+  numero_serie int
+  peso decimal
+  repeticiones int
+  rir int
+}
+
+Table comida {
+  id int [pk, increment]
+  usuario_id int
+  fecha datetime
+  tipo varchar
+  observaciones text
+}
+
+Table alimento {
+  id int [pk, increment]
+  nombre varchar
+  calorias decimal
+  proteinas decimal
+  carbohidratos decimal
+  grasas decimal
+  fibra decimal
+  alergenos varchar
+}
+
+Table comida_alimento {
+  id int [pk, increment]
+  comida_id int
+  alimento_id int
+  cantidad_gramos decimal
+}
+
+Table registro_peso {
+  id int [pk, increment]
+  usuario_id int
+  fecha date
+  peso decimal
+}
+
+Table medicion {
+  id int [pk, increment]
+  usuario_id int
+  fecha date
+  pecho decimal
+  cintura decimal
+  cadera decimal
+  brazo decimal
+  antebrazo decimal
+  muslo decimal
+  gemelo decimal
+}
+
+Table objetivo {
+  id int [pk, increment]
+  usuario_id int
+  tipo varchar
+  valor_objetivo decimal
+  fecha_inicio date
+  fecha_fin date
+  estado varchar
+}
+Ref: rutina.usuario_id > usuario.id
+
+Ref: rutina_ejercicio.rutina_id > rutina.id
+Ref: rutina_ejercicio.ejercicio_id > ejercicio.id
+
+Ref: entrenamiento.usuario_id > usuario.id
+Ref: entrenamiento.rutina_id > rutina.id
+
+Ref: ejercicio_realizado.entrenamiento_id > entrenamiento.id
+Ref: ejercicio_realizado.ejercicio_id > ejercicio.id
+
+Ref: serie.ejercicio_realizado_id > ejercicio_realizado.id
+
+Ref: comida.usuario_id > usuario.id
+
+Ref: comida_alimento.comida_id > comida.id
+Ref: comida_alimento.alimento_id > alimento.id
+
+Ref: registro_peso.usuario_id > usuario.id
+
+Ref: medicion.usuario_id > usuario.id
+
+Ref: objetivo.usuario_id > usuario.id
