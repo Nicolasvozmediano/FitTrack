@@ -1,30 +1,27 @@
-package com.fittrack.model;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
+package com.fittrack.dto;
 
 import java.time.LocalDate;
 
-@Entity
-@Table(name = "usuarios")
-public class Usuario {
+public class UsuarioResponse {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String nombre;
-
-    @Column(unique = true, nullable = false)
     private String email;
-
-    @Column(nullable = false)
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String contrasena;
-
     private LocalDate fechaRegistro;
 
-    public Usuario() {
+    public UsuarioResponse() {
+    }
+
+    public UsuarioResponse(
+            Long id,
+            String nombre,
+            String email,
+            LocalDate fechaRegistro
+    ) {
+        this.id = id;
+        this.nombre = nombre;
+        this.email = email;
+        this.fechaRegistro = fechaRegistro;
     }
 
     public Long getId() {
@@ -49,14 +46,6 @@ public class Usuario {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getContrasena() {
-        return contrasena;
-    }
-
-    public void setContrasena(String contrasena) {
-        this.contrasena = contrasena;
     }
 
     public LocalDate getFechaRegistro() {

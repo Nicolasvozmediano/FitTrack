@@ -1,88 +1,550 @@
 package com.fittrack.controller;
 
+import com.fittrack.dto.EstadisticasUsuarioResponse;
+import com.fittrack.dto.HistorialEntrenamientoResponse;
+import com.fittrack.dto.ResumenEntrenamientoResponse;
+import com.fittrack.dto.EntrenamientoUpdateRequest;
 import com.fittrack.model.Entrenamiento;
 import com.fittrack.model.Usuario;
-import com.fittrack.repository.EntrenamientoRepository;
-import com.fittrack.repository.UsuarioRepository;
+import com.fittrack.security.JwtService;
+import com.fittrack.service.EntrenamientoService;
+import com.fittrack.service.UsuarioService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
+
 
 @RestController
 @RequestMapping("/api/entrenamientos")
-@CrossOrigin(origins = "http://localhost:5173")
 public class EntrenamientoController {
 
+    private final EntrenamientoService entrenamientoService;
+    private final UsuarioService usuarioService;
+    private final JwtService jwtService;
 
-private final EntrenamientoRepository entrenamientoRepository;
-private final UsuarioRepository usuarioRepository;
 
-public EntrenamientoController(
-        EntrenamientoRepository entrenamientoRepository,
-        UsuarioRepository usuarioRepository
-) {
-    this.entrenamientoRepository = entrenamientoRepository;
-    this.usuarioRepository = usuarioRepository;
-}
-
-@GetMapping("/usuario/{usuarioId}")
-public ResponseEntity<List<Entrenamiento>> obtenerEntrenamientos(
-        @PathVariable Long usuarioId
-) {
-    List<Entrenamiento> entrenamientos =
-            entrenamientoRepository.findByUsuarioId(usuarioId);
-
-    return ResponseEntity.ok(entrenamientos);
-}
-
-@PostMapping
-public ResponseEntity<?> crearEntrenamiento(
-        @RequestBody Entrenamiento entrenamiento
-) {
-
-    if (entrenamiento.getUsuario() == null ||
-            entrenamiento.getUsuario().getId() == null) {
-
-        return ResponseEntity.badRequest()
-                .body("El usuario es obligatorio");
+    public EntrenamientoController(
+            EntrenamientoService entrenamientoService,
+            UsuarioService usuarioService,
+            JwtService jwtService
+    ) {
+        this.entrenamientoService = entrenamientoService;
+        this.usuarioService = usuarioService;
+        this.jwtService = jwtService;
     }
 
-    Long usuarioId = entrenamiento.getUsuario().getId();
 
-    Optional<Usuario> usuario =
-            usuarioRepository.findById(usuarioId);
+    // CREAR ENTRENAMIENTO
 
-    if (usuario.isEmpty()) {
-        return ResponseEntity.badRequest()
-                .body("El usuario no existe");
+    @PostMapping
+    public ResponseEntity<?> crearEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody EntrenamientoRequest request
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (request == null
+                || request.getNombre() == null
+                || request.getNombre().isBlank()) {
+
+            return ResponseEntity.badRequest()
+                    .body("Debes indicar el nombre del entrenamiento");
+        }
+
+        if (request.getDuracionMinutos() != null
+                && request.getDuracionMinutos() < 0) {
+
+            return ResponseEntity.badRequest()
+                    .body("La duración no puede ser negativa");
+        }
+
+        Entrenamiento entrenamiento =
+                new Entrenamiento();
+
+        entrenamiento.setNombre(
+                request.getNombre().trim()
+        );
+
+        entrenamiento.setDuracionMinutos(
+                request.getDuracionMinutos()
+        );
+
+        if (request.getFecha() == null) {
+
+            entrenamiento.setFecha(
+                    LocalDate.now()
+            );
+
+        } else {
+
+            entrenamiento.setFecha(
+                    request.getFecha()
+            );
+        }
+
+        entrenamiento.setUsuario(
+                usuario
+        );
+
+        Entrenamiento guardado =
+                entrenamientoService
+                        .guardarEntrenamiento(entrenamiento);
+
+        return ResponseEntity.ok(
+                convertirARespuesta(guardado)
+        );
     }
 
-    entrenamiento.setUsuario(usuario.get());
 
-    Entrenamiento nuevoEntrenamiento =
-            entrenamientoRepository.save(entrenamiento);
+    // EDITAR ENTRENAMIENTO
 
-    return ResponseEntity.ok(nuevoEntrenamiento);
-}
+    @PutMapping("/{entrenamientoId}")
+    public ResponseEntity<?> editarEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId,
+            @RequestBody EntrenamientoUpdateRequest request
+    ) {
 
-@DeleteMapping("/{id}")
-public ResponseEntity<?> eliminarEntrenamiento(
-        @PathVariable Long id
-) {
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
 
-    if (!entrenamientoRepository.existsById(id)) {
-        return ResponseEntity.notFound().build();
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        if (request == null) {
+
+            return ResponseEntity.badRequest()
+                    .body("Debes indicar los datos a modificar");
+        }
+
+        if (request.getNombre() == null
+                && request.getFecha() == null
+                && request.getDuracionMinutos() == null) {
+
+            return ResponseEntity.badRequest()
+                    .body("Debes indicar al menos un campo a modificar");
+        }
+
+        if (request.getNombre() != null
+                && request.getNombre().isBlank()) {
+
+            return ResponseEntity.badRequest()
+                    .body("El nombre no puede estar vacío");
+        }
+
+        if (request.getDuracionMinutos() != null
+                && request.getDuracionMinutos() < 0) {
+
+            return ResponseEntity.badRequest()
+                    .body("La duración no puede ser negativa");
+        }
+
+        if (request.getNombre() != null) {
+
+            entrenamiento.setNombre(
+                    request.getNombre().trim()
+            );
+        }
+
+        if (request.getFecha() != null) {
+
+            entrenamiento.setFecha(
+                    request.getFecha()
+            );
+        }
+
+        if (request.getDuracionMinutos() != null) {
+
+            entrenamiento.setDuracionMinutos(
+                    request.getDuracionMinutos()
+            );
+        }
+
+        Entrenamiento actualizado =
+                entrenamientoService
+                        .guardarEntrenamiento(entrenamiento);
+
+        return ResponseEntity.ok(
+                convertirARespuesta(actualizado)
+        );
     }
 
-    entrenamientoRepository.deleteById(id);
 
-    return ResponseEntity.ok(
-            "Entrenamiento eliminado correctamente"
-    );
-}
+    // ELIMINAR ENTRENAMIENTO
+
+    @DeleteMapping("/{entrenamientoId}")
+    public ResponseEntity<?> eliminarEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        entrenamientoService.eliminarEntrenamiento(
+                entrenamientoId
+        );
+
+        return ResponseEntity.noContent().build();
+    }
 
 
+    // OBTENER ENTRENAMIENTOS DEL USUARIO
+
+    @GetMapping
+    public ResponseEntity<?> obtenerEntrenamientosUsuario(
+            @RequestHeader("Authorization") String authorization
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<EntrenamientoResponse> respuesta =
+                entrenamientoService
+                        .obtenerPorUsuario(usuario.getId())
+                        .stream()
+                        .map(this::convertirARespuesta)
+                        .toList();
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+    // OBTENER HISTORIAL GENERAL DEL USUARIO
+
+    @GetMapping("/historial")
+    public ResponseEntity<?> obtenerHistorialUsuario(
+            @RequestHeader("Authorization") String authorization
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<HistorialEntrenamientoResponse> historial =
+                entrenamientoService.obtenerHistorialUsuario(
+                        usuario.getId()
+                );
+
+        return ResponseEntity.ok(historial);
+    }
+
+
+    // OBTENER ESTADÍSTICAS GENERALES DEL USUARIO
+
+    @GetMapping("/estadisticas")
+    public ResponseEntity<?> obtenerEstadisticasUsuario(
+            @RequestHeader("Authorization") String authorization
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        EstadisticasUsuarioResponse respuesta =
+                entrenamientoService.obtenerEstadisticasUsuario(
+                        usuario.getId()
+                );
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+    // OBTENER UN ENTRENAMIENTO POR ID
+
+    @GetMapping("/{entrenamientoId}")
+    public ResponseEntity<?> obtenerEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        return ResponseEntity.ok(
+                convertirARespuesta(entrenamiento)
+        );
+    }
+
+
+    // OBTENER RESUMEN COMPLETO DEL ENTRENAMIENTO
+
+    @GetMapping("/{entrenamientoId}/resumen")
+    public ResponseEntity<?> obtenerResumenEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        ResumenEntrenamientoResponse respuesta =
+                entrenamientoService
+                        .obtenerResumenEntrenamiento(
+                                entrenamientoId
+                        );
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+    // OBTENER USUARIO DESDE TOKEN
+
+    private Usuario obtenerUsuarioDesdeToken(
+            String authorization
+    ) {
+
+        try {
+
+            if (authorization == null
+                    || !authorization.startsWith("Bearer ")) {
+
+                return null;
+            }
+
+            String token =
+                    authorization.substring(7);
+
+            String email =
+                    jwtService.obtenerEmail(token);
+
+            return usuarioService
+                    .buscarUsuarioPorEmail(email);
+
+        } catch (Exception e) {
+
+            return null;
+        }
+    }
+
+
+    // CONVERTIR A RESPUESTA
+
+    private EntrenamientoResponse convertirARespuesta(
+            Entrenamiento entrenamiento
+    ) {
+
+        return new EntrenamientoResponse(
+                entrenamiento.getId(),
+                entrenamiento.getNombre(),
+                entrenamiento.getFecha(),
+                entrenamiento.getDuracionMinutos()
+        );
+    }
+
+
+    // REQUEST DE CREACIÓN
+
+    public static class EntrenamientoRequest {
+
+        private String nombre;
+        private LocalDate fecha;
+        private Integer duracionMinutos;
+
+
+        public EntrenamientoRequest() {
+        }
+
+
+        public String getNombre() {
+            return nombre;
+        }
+
+
+        public void setNombre(String nombre) {
+            this.nombre = nombre;
+        }
+
+
+        public LocalDate getFecha() {
+            return fecha;
+        }
+
+
+        public void setFecha(LocalDate fecha) {
+            this.fecha = fecha;
+        }
+
+
+        public Integer getDuracionMinutos() {
+            return duracionMinutos;
+        }
+
+
+        public void setDuracionMinutos(
+                Integer duracionMinutos
+        ) {
+            this.duracionMinutos = duracionMinutos;
+        }
+    }
+
+
+    // RESPUESTA
+
+    public static class EntrenamientoResponse {
+
+        private Long id;
+        private String nombre;
+        private LocalDate fecha;
+        private Integer duracionMinutos;
+
+
+        public EntrenamientoResponse() {
+        }
+
+
+        public EntrenamientoResponse(
+                Long id,
+                String nombre,
+                LocalDate fecha,
+                Integer duracionMinutos
+        ) {
+            this.id = id;
+            this.nombre = nombre;
+            this.fecha = fecha;
+            this.duracionMinutos = duracionMinutos;
+        }
+
+
+        public Long getId() {
+            return id;
+        }
+
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+
+        public String getNombre() {
+            return nombre;
+        }
+
+
+        public void setNombre(String nombre) {
+            this.nombre = nombre;
+        }
+
+
+        public LocalDate getFecha() {
+            return fecha;
+        }
+
+
+        public void setFecha(LocalDate fecha) {
+            this.fecha = fecha;
+        }
+
+
+        public Integer getDuracionMinutos() {
+            return duracionMinutos;
+        }
+
+
+        public void setDuracionMinutos(
+                Integer duracionMinutos
+        ) {
+            this.duracionMinutos = duracionMinutos;
+        }
+    }
 }

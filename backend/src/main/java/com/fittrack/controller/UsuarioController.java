@@ -1,13 +1,17 @@
 package com.fittrack.controller;
 
-import com.fittrack.LoginResponse;
+import com.fittrack.dto.AuthResponse;
+import com.fittrack.dto.ErrorResponse;
+import com.fittrack.dto.LoginRequest;
+import com.fittrack.dto.LoginResponse;
+import com.fittrack.dto.RegistroRequest;
+import com.fittrack.dto.UsuarioResponse;
 import com.fittrack.model.Usuario;
-import com.fittrack.repository.UsuarioRepository;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.fittrack.security.JwtService;
+import com.fittrack.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -15,53 +19,178 @@ import java.util.Optional;
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
 
+    private final UsuarioService usuarioService;
+    private final JwtService jwtService;
 
-private final UsuarioRepository usuarioRepository;
-private final PasswordEncoder passwordEncoder;
-
-public UsuarioController(UsuarioRepository usuarioRepository,
-                          PasswordEncoder passwordEncoder) {
-    this.usuarioRepository = usuarioRepository;
-    this.passwordEncoder = passwordEncoder;
-}
-
-@GetMapping
-public List<Usuario> obtenerUsuarios() {
-    return usuarioRepository.findAll();
-}
-
-@PostMapping
-public Usuario crearUsuario(@RequestBody Usuario usuario) {
-    usuario.setContrasena(passwordEncoder.encode(usuario.getContrasena()));
-    return usuarioRepository.save(usuario);
-}
-
-@PostMapping("/login")
-public ResponseEntity<LoginResponse> login(@RequestBody Usuario usuario) {
-
-    Optional<Usuario> usuarioEncontrado =
-            usuarioRepository.findByEmail(usuario.getEmail());
-
-    if (usuarioEncontrado.isPresent()) {
-
-        Usuario usuarioBD = usuarioEncontrado.get();
-
-        if (passwordEncoder.matches(
-                usuario.getContrasena(),
-                usuarioBD.getContrasena())) {
-
-            LoginResponse respuesta = new LoginResponse(
-                    usuarioBD.getId(),
-                    usuarioBD.getNombre(),
-                    usuarioBD.getEmail()
-            );
-
-            return ResponseEntity.ok(respuesta);
-        }
+    public UsuarioController(
+            UsuarioService usuarioService,
+            JwtService jwtService
+    ) {
+        this.usuarioService = usuarioService;
+        this.jwtService = jwtService;
     }
 
-    return ResponseEntity.status(401).build();
-}
 
+    @PostMapping
+    public ResponseEntity<?> crearUsuario(
+            @RequestBody RegistroRequest registroRequest
+    ) {
+
+        Usuario usuario = new Usuario();
+
+        usuario.setNombre(registroRequest.getNombre());
+        usuario.setEmail(registroRequest.getEmail());
+        usuario.setContrasena(registroRequest.getContrasena());
+        usuario.setFechaRegistro(registroRequest.getFechaRegistro());
+
+        String error = usuarioService.validarRegistro(usuario);
+
+        if (error != null) {
+
+            ErrorResponse respuestaError =
+                    new ErrorResponse(error);
+
+            if (error.equals("El correo ya está registrado")) {
+                return ResponseEntity
+                        .status(409)
+                        .body(respuestaError);
+            }
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(respuestaError);
+        }
+
+
+        Usuario usuarioGuardado =
+                usuarioService.guardarUsuario(usuario);
+
+
+        UsuarioResponse respuesta =
+                new UsuarioResponse(
+                        usuarioGuardado.getId(),
+                        usuarioGuardado.getNombre(),
+                        usuarioGuardado.getEmail(),
+                        usuarioGuardado.getFechaRegistro()
+                );
+
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(
+            @RequestBody LoginRequest loginRequest
+    ) {
+
+        Usuario usuario = new Usuario();
+
+        usuario.setEmail(loginRequest.getEmail());
+        usuario.setContrasena(loginRequest.getContrasena());
+
+
+        String error = usuarioService.validarLogin(usuario);
+
+        if (error != null) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(new ErrorResponse(error));
+        }
+
+
+        Optional<Usuario> usuarioEncontrado =
+                usuarioService.buscarPorEmail(
+                        loginRequest.getEmail()
+                );
+
+
+        if (usuarioEncontrado.isPresent()) {
+
+            Usuario usuarioBD =
+                    usuarioEncontrado.get();
+
+
+            boolean contrasenaValida =
+                    usuarioService.contrasenaCorrecta(
+                            loginRequest.getContrasena(),
+                            usuarioBD.getContrasena()
+                    );
+
+
+            if (contrasenaValida) {
+
+                String token =
+                        jwtService.generarToken(
+                                usuarioBD.getId(),
+                                usuarioBD.getEmail()
+                        );
+
+
+                AuthResponse respuesta =
+                        new AuthResponse(
+                                usuarioBD.getId(),
+                                usuarioBD.getNombre(),
+                                usuarioBD.getEmail(),
+                                token
+                        );
+
+
+                return ResponseEntity.ok(respuesta);
+            }
+        }
+
+
+        return ResponseEntity
+                .status(401)
+                .body(
+                        new ErrorResponse(
+                                "Correo o contraseña incorrectos"
+                        )
+                );
+    }
+
+
+
+
+    @GetMapping("/perfil")
+    public ResponseEntity<?> perfil(
+            @RequestHeader("Authorization") String authorization
+    ) {
+
+
+        String token =
+                authorization.substring(7);
+
+
+        String email =
+                jwtService.obtenerEmail(token);
+
+
+        Usuario usuario =
+                usuarioService.buscarUsuarioPorEmail(email);
+
+
+        if (usuario == null) {
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+
+
+        UsuarioResponse respuesta =
+                new UsuarioResponse(
+                        usuario.getId(),
+                        usuario.getNombre(),
+                        usuario.getEmail(),
+                        usuario.getFechaRegistro()
+                );
+
+
+        return ResponseEntity.ok(respuesta);
+    }
 
 }

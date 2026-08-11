@@ -1,33 +1,97 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# =========================
+# FITTRACK
+# =========================
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# -------------------------
+# BACKEND - JAVA / MAVEN
+# -------------------------
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+backend/target/
 
-### VS Code ###
+*.class
+*.jar
+*.war
+*.ear
+
+.mvn/timing.properties
+
+
+# -------------------------
+# ARCHIVOS PRIVADOS BACKEND
+# -------------------------
+
+test-api.http
+
+.env
+.env.*
+!.env.example
+
+
+# -------------------------
+# FRONTEND / MOBILE
+# -------------------------
+
+frontend/node_modules/
+mobile/node_modules/
+
+frontend/dist/
+mobile/dist/
+
+frontend/.expo/
+mobile/.expo/
+
+.expo/
+
+
+# -------------------------
+# NODE
+# -------------------------
+
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# -------------------------
+# VS CODE
+# -------------------------
+
 .vscode/
+
+
+# -------------------------
+# INTELLIJ
+# -------------------------
+
+.idea/
+*.iml
+
+
+# -------------------------
+# SISTEMA OPERATIVO
+# -------------------------
+
+.DS_Store
+Thumbs.db
+
+
+# -------------------------
+# ARCHIVOS TEMPORALES
+# -------------------------
+
+*.tmp
+*.temp
+*.log
+
+
+# -------------------------
+# CREDENCIALES / SECRETOS
+# -------------------------
+
+*.env
+*.secret
+*.secrets

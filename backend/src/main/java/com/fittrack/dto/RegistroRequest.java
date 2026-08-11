@@ -1,38 +1,15 @@
-package com.fittrack.model;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
+package com.fittrack.dto;
 
 import java.time.LocalDate;
 
-@Entity
-@Table(name = "usuarios")
-public class Usuario {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class RegistroRequest {
 
     private String nombre;
-
-    @Column(unique = true, nullable = false)
     private String email;
-
-    @Column(nullable = false)
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String contrasena;
-
     private LocalDate fechaRegistro;
 
-    public Usuario() {
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
+    public RegistroRequest() {
     }
 
     public String getNombre() {
