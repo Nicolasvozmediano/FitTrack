@@ -4,6 +4,8 @@ public class EjercicioRequest {
 
     private String nombre;
 
+    private Long catalogoEjercicioId;
+
     private Integer series;
 
     private Integer repeticiones;
@@ -22,6 +24,19 @@ public class EjercicioRequest {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+
+    public Long getCatalogoEjercicioId() {
+        return catalogoEjercicioId;
+    }
+
+
+    public void setCatalogoEjercicioId(
+            Long catalogoEjercicioId
+    ) {
+        this.catalogoEjercicioId =
+                catalogoEjercicioId;
     }
 
 

@@ -1,10 +1,12 @@
 package com.fittrack.controller;
 
 import com.fittrack.dto.EjercicioRequest;
+import com.fittrack.model.CatalogoEjercicio;
 import com.fittrack.model.Ejercicio;
 import com.fittrack.model.Entrenamiento;
 import com.fittrack.model.Usuario;
 import com.fittrack.security.JwtService;
+import com.fittrack.service.CatalogoEjercicioService;
 import com.fittrack.service.EjercicioService;
 import com.fittrack.service.EntrenamientoService;
 import com.fittrack.service.UsuarioService;
@@ -22,6 +24,7 @@ public class EjercicioController {
     private final EjercicioService ejercicioService;
     private final EntrenamientoService entrenamientoService;
     private final UsuarioService usuarioService;
+    private final CatalogoEjercicioService catalogoEjercicioService;
     private final JwtService jwtService;
 
 
@@ -29,11 +32,14 @@ public class EjercicioController {
             EjercicioService ejercicioService,
             EntrenamientoService entrenamientoService,
             UsuarioService usuarioService,
+            CatalogoEjercicioService catalogoEjercicioService,
             JwtService jwtService
     ) {
         this.ejercicioService = ejercicioService;
         this.entrenamientoService = entrenamientoService;
         this.usuarioService = usuarioService;
+        this.catalogoEjercicioService =
+                catalogoEjercicioService;
         this.jwtService = jwtService;
     }
 
@@ -48,21 +54,30 @@ public class EjercicioController {
     ) {
 
         Usuario usuario =
-                obtenerUsuarioDesdeToken(authorization);
+                obtenerUsuarioDesdeToken(
+                        authorization
+                );
 
 
         if (usuario == null) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity
+                    .status(401)
+                    .build();
         }
 
 
         Entrenamiento entrenamiento =
-                entrenamientoService.buscarPorId(entrenamientoId)
+                entrenamientoService
+                        .buscarPorId(
+                                entrenamientoId
+                        )
                         .orElse(null);
 
 
         if (entrenamiento == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
 
 
@@ -71,38 +86,108 @@ public class EjercicioController {
                 usuario.getId()
         )) {
 
-            return ResponseEntity.status(403).build();
+            return ResponseEntity
+                    .status(403)
+                    .build();
         }
 
 
-        if (request == null
-                || request.getNombre() == null
-                || request.getNombre().isBlank()) {
+        if (request == null) {
 
-            return ResponseEntity.badRequest()
-                    .body("Debes indicar el nombre del ejercicio");
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            "Debes indicar los datos del ejercicio"
+                    );
         }
 
 
-        Ejercicio ejercicio = new Ejercicio();
+        CatalogoEjercicio catalogoEjercicio =
+                null;
+
+
+        if (request.getCatalogoEjercicioId() != null) {
+
+            catalogoEjercicio =
+                    catalogoEjercicioService
+                            .buscarPorId(
+                                    request.getCatalogoEjercicioId()
+                            )
+                            .orElse(null);
+
+
+            if (catalogoEjercicio == null) {
+
+                return ResponseEntity
+                        .badRequest()
+                        .body(
+                                "El ejercicio del catálogo no existe"
+                        );
+            }
+        }
+
+
+        String nombreEjercicio;
+
+
+        if (catalogoEjercicio != null) {
+
+            nombreEjercicio =
+                    catalogoEjercicio.getNombre();
+
+        } else {
+
+            if (
+                    request.getNombre() == null
+                            || request.getNombre().isBlank()
+            ) {
+
+                return ResponseEntity
+                        .badRequest()
+                        .body(
+                                "Debes indicar el nombre del ejercicio"
+                        );
+            }
+
+
+            nombreEjercicio =
+                    request.getNombre().trim();
+        }
+
+
+        Ejercicio ejercicio =
+                new Ejercicio();
+
 
         ejercicio.setNombre(
-                request.getNombre().trim()
+                nombreEjercicio
         );
+
 
         ejercicio.setEntrenamiento(
                 entrenamiento
         );
 
 
+        ejercicio.setCatalogoEjercicio(
+                catalogoEjercicio
+        );
+
+
         Ejercicio guardado =
-                ejercicioService.guardarEjercicio(ejercicio);
+                ejercicioService
+                        .guardarEjercicio(
+                                ejercicio
+                        );
 
 
         return ResponseEntity.ok(
                 new EjercicioSimpleResponse(
                         guardado.getId(),
-                        guardado.getNombre()
+                        guardado.getNombre(),
+                        obtenerCatalogoEjercicioId(
+                                guardado
+                        )
                 )
         );
     }
@@ -118,40 +203,59 @@ public class EjercicioController {
     ) {
 
         Usuario usuario =
-                obtenerUsuarioDesdeToken(authorization);
+                obtenerUsuarioDesdeToken(
+                        authorization
+                );
 
 
         if (usuario == null) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity
+                    .status(401)
+                    .build();
         }
 
 
         Ejercicio ejercicio =
-                ejercicioService.buscarPorId(ejercicioId)
+                ejercicioService
+                        .buscarPorId(
+                                ejercicioId
+                        )
                         .orElse(null);
 
 
         if (ejercicio == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
 
 
-        if (ejercicio.getEntrenamiento() == null
-                || !entrenamientoService.perteneceUsuario(
-                        ejercicio.getEntrenamiento(),
-                        usuario.getId()
-                )) {
+        if (
+                ejercicio.getEntrenamiento() == null
+                        || !entrenamientoService
+                        .perteneceUsuario(
+                                ejercicio.getEntrenamiento(),
+                                usuario.getId()
+                        )
+        ) {
 
-            return ResponseEntity.status(403).build();
+            return ResponseEntity
+                    .status(403)
+                    .build();
         }
 
 
-        if (request == null
-                || request.getNombre() == null
-                || request.getNombre().isBlank()) {
+        if (
+                request == null
+                        || request.getNombre() == null
+                        || request.getNombre().isBlank()
+        ) {
 
-            return ResponseEntity.badRequest()
-                    .body("Debes indicar el nombre del ejercicio");
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            "Debes indicar el nombre del ejercicio"
+                    );
         }
 
 
@@ -161,13 +265,19 @@ public class EjercicioController {
 
 
         Ejercicio actualizado =
-                ejercicioService.guardarEjercicio(ejercicio);
+                ejercicioService
+                        .guardarEjercicio(
+                                ejercicio
+                        );
 
 
         return ResponseEntity.ok(
                 new EjercicioSimpleResponse(
                         actualizado.getId(),
-                        actualizado.getNombre()
+                        actualizado.getNombre(),
+                        obtenerCatalogoEjercicioId(
+                                actualizado
+                        )
                 )
         );
     }
@@ -182,40 +292,57 @@ public class EjercicioController {
     ) {
 
         Usuario usuario =
-                obtenerUsuarioDesdeToken(authorization);
+                obtenerUsuarioDesdeToken(
+                        authorization
+                );
 
 
         if (usuario == null) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity
+                    .status(401)
+                    .build();
         }
 
 
         Ejercicio ejercicio =
-                ejercicioService.buscarPorId(ejercicioId)
+                ejercicioService
+                        .buscarPorId(
+                                ejercicioId
+                        )
                         .orElse(null);
 
 
         if (ejercicio == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
 
 
-        if (ejercicio.getEntrenamiento() == null
-                || !entrenamientoService.perteneceUsuario(
-                        ejercicio.getEntrenamiento(),
-                        usuario.getId()
-                )) {
+        if (
+                ejercicio.getEntrenamiento() == null
+                        || !entrenamientoService
+                        .perteneceUsuario(
+                                ejercicio.getEntrenamiento(),
+                                usuario.getId()
+                        )
+        ) {
 
-            return ResponseEntity.status(403).build();
+            return ResponseEntity
+                    .status(403)
+                    .build();
         }
 
 
-        ejercicioService.eliminarEjercicio(
-                ejercicioId
-        );
+        ejercicioService
+                .eliminarEjercicio(
+                        ejercicioId
+                );
 
 
-        return ResponseEntity.noContent().build();
+        return ResponseEntity
+                .noContent()
+                .build();
     }
 
 
@@ -228,21 +355,30 @@ public class EjercicioController {
     ) {
 
         Usuario usuario =
-                obtenerUsuarioDesdeToken(authorization);
+                obtenerUsuarioDesdeToken(
+                        authorization
+                );
 
 
         if (usuario == null) {
-            return ResponseEntity.status(401).build();
+            return ResponseEntity
+                    .status(401)
+                    .build();
         }
 
 
         Entrenamiento entrenamiento =
-                entrenamientoService.buscarPorId(entrenamientoId)
+                entrenamientoService
+                        .buscarPorId(
+                                entrenamientoId
+                        )
                         .orElse(null);
 
 
         if (entrenamiento == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity
+                    .notFound()
+                    .build();
         }
 
 
@@ -251,23 +387,53 @@ public class EjercicioController {
                 usuario.getId()
         )) {
 
-            return ResponseEntity.status(403).build();
+            return ResponseEntity
+                    .status(403)
+                    .build();
         }
 
 
         List<EjercicioSimpleResponse> respuesta =
-                entrenamiento.getEjercicios()
+                entrenamiento
+                        .getEjercicios()
                         .stream()
-                        .map(ejercicio ->
-                                new EjercicioSimpleResponse(
-                                        ejercicio.getId(),
-                                        ejercicio.getNombre()
-                                )
+                        .map(
+                                ejercicio ->
+                                        new EjercicioSimpleResponse(
+                                                ejercicio.getId(),
+                                                ejercicio.getNombre(),
+                                                obtenerCatalogoEjercicioId(
+                                                        ejercicio
+                                                )
+                                        )
                         )
                         .toList();
 
 
-        return ResponseEntity.ok(respuesta);
+        return ResponseEntity.ok(
+                respuesta
+        );
+    }
+
+
+    // OBTENER ID DEL CATÁLOGO SI EXISTE
+
+    private Long obtenerCatalogoEjercicioId(
+            Ejercicio ejercicio
+    ) {
+
+        if (
+                ejercicio.getCatalogoEjercicio()
+                        == null
+        ) {
+
+            return null;
+        }
+
+
+        return ejercicio
+                .getCatalogoEjercicio()
+                .getId();
     }
 
 
@@ -279,8 +445,12 @@ public class EjercicioController {
 
         try {
 
-            if (authorization == null
-                    || !authorization.startsWith("Bearer ")) {
+            if (
+                    authorization == null
+                            || !authorization.startsWith(
+                            "Bearer "
+                    )
+            ) {
 
                 return null;
             }
@@ -291,11 +461,15 @@ public class EjercicioController {
 
 
             String email =
-                    jwtService.obtenerEmail(token);
+                    jwtService.obtenerEmail(
+                            token
+                    );
 
 
             return usuarioService
-                    .buscarUsuarioPorEmail(email);
+                    .buscarUsuarioPorEmail(
+                            email
+                    );
 
         } catch (Exception e) {
 
@@ -310,6 +484,7 @@ public class EjercicioController {
 
         private Long id;
         private String nombre;
+        private Long catalogoEjercicioId;
 
 
         public EjercicioSimpleResponse() {
@@ -318,10 +493,13 @@ public class EjercicioController {
 
         public EjercicioSimpleResponse(
                 Long id,
-                String nombre
+                String nombre,
+                Long catalogoEjercicioId
         ) {
             this.id = id;
             this.nombre = nombre;
+            this.catalogoEjercicioId =
+                    catalogoEjercicioId;
         }
 
 
@@ -342,6 +520,19 @@ public class EjercicioController {
 
         public void setNombre(String nombre) {
             this.nombre = nombre;
+        }
+
+
+        public Long getCatalogoEjercicioId() {
+            return catalogoEjercicioId;
+        }
+
+
+        public void setCatalogoEjercicioId(
+                Long catalogoEjercicioId
+        ) {
+            this.catalogoEjercicioId =
+                    catalogoEjercicioId;
         }
     }
 }

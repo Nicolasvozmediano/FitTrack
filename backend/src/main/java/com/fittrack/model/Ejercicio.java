@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
 @Entity
 public class Ejercicio {
 
@@ -19,6 +20,11 @@ public class Ejercicio {
     @ManyToOne
     @JoinColumn(name = "entrenamiento_id")
     private Entrenamiento entrenamiento;
+
+
+    @ManyToOne
+    @JoinColumn(name = "catalogo_ejercicio_id")
+    private CatalogoEjercicio catalogoEjercicio;
 
 
     @OneToMany(
@@ -58,8 +64,24 @@ public class Ejercicio {
     }
 
 
-    public void setEntrenamiento(Entrenamiento entrenamiento) {
-        this.entrenamiento = entrenamiento;
+    public void setEntrenamiento(
+            Entrenamiento entrenamiento
+    ) {
+        this.entrenamiento =
+                entrenamiento;
+    }
+
+
+    public CatalogoEjercicio getCatalogoEjercicio() {
+        return catalogoEjercicio;
+    }
+
+
+    public void setCatalogoEjercicio(
+            CatalogoEjercicio catalogoEjercicio
+    ) {
+        this.catalogoEjercicio =
+                catalogoEjercicio;
     }
 
 
@@ -68,8 +90,9 @@ public class Ejercicio {
     }
 
 
-    public void setSeries(List<Serie> series) {
+    public void setSeries(
+            List<Serie> series
+    ) {
         this.series = series;
- 
     }
 }
