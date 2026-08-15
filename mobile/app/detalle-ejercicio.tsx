@@ -99,6 +99,15 @@ export default function DetalleEjercicio() {
     );
 
 
+  const [
+    serieEditandoId,
+    setSerieEditandoId,
+  ] =
+    useState<number | null>(
+      null
+    );
+
+
   /*
    * TOKEN
    */
@@ -193,7 +202,9 @@ export default function DetalleEjercicio() {
             await response.json();
 
 
-        setSeries(data);
+        setSeries(
+          data
+        );
 
 
       } catch (error) {
@@ -230,7 +241,57 @@ export default function DetalleEjercicio() {
 
 
   /*
-   * GUARDAR SERIE
+   * INICIAR EDICIÓN
+   */
+
+  const iniciarEdicionSerie = (
+    serie: Serie
+  ) => {
+
+    setSerieEditandoId(
+      serie.id
+    );
+
+
+    setPeso(
+      String(
+        serie.peso
+      ).replace(
+        '.',
+        ','
+      )
+    );
+
+
+    setRepeticiones(
+      String(
+        serie.repeticiones
+      )
+    );
+
+  };
+
+
+  /*
+   * CANCELAR EDICIÓN
+   */
+
+  const cancelarEdicionSerie =
+    () => {
+
+      setSerieEditandoId(
+        null
+      );
+
+      setPeso('');
+
+      setRepeticiones('');
+
+    };
+
+
+  /*
+   * GUARDAR / EDITAR SERIE
    */
 
   const guardarSerie =
@@ -263,7 +324,10 @@ export default function DetalleEjercicio() {
 
       const pesoNumero =
         Number(
-          peso.replace(',', '.')
+          peso.replace(
+            ',',
+            '.'
+          )
         );
 
 
@@ -305,9 +369,15 @@ export default function DetalleEjercicio() {
       }
 
 
+      const editando =
+        serieEditandoId !== null;
+
+
       try {
 
-        setGuardando(true);
+        setGuardando(
+          true
+        );
 
 
         const token =
@@ -319,11 +389,20 @@ export default function DetalleEjercicio() {
         }
 
 
+        const url =
+          editando
+            ? `${API_URL}/api/series/${serieEditandoId}`
+            : `${API_URL}/api/series/ejercicio/${ejercicioId}`;
+
+
         const response =
           await fetch(
-            `${API_URL}/api/series/ejercicio/${ejercicioId}`,
+            url,
             {
-              method: 'POST',
+              method:
+                editando
+                  ? 'PUT'
+                  : 'POST',
 
               headers: {
                 'Content-Type':
@@ -367,7 +446,9 @@ export default function DetalleEjercicio() {
 
 
           Alert.alert(
-            'No se pudo guardar',
+            editando
+              ? 'No se pudieron guardar los cambios'
+              : 'No se pudo guardar',
             mensaje ||
               'Ha ocurrido un error.'
           );
@@ -376,10 +457,22 @@ export default function DetalleEjercicio() {
         }
 
 
+        /*
+         * Limpiar formulario
+         */
+
         setPeso('');
 
         setRepeticiones('');
 
+        setSerieEditandoId(
+          null
+        );
+
+
+        /*
+         * Recargar desde PostgreSQL
+         */
 
         await cargarSeries();
 
@@ -387,7 +480,9 @@ export default function DetalleEjercicio() {
       } catch (error) {
 
         console.log(
-          'Error guardando serie:',
+          editando
+            ? 'Error editando serie:'
+            : 'Error guardando serie:',
           error
         );
 
@@ -400,7 +495,9 @@ export default function DetalleEjercicio() {
 
       } finally {
 
-        setGuardando(false);
+        setGuardando(
+          false
+        );
       }
 
     };
@@ -435,7 +532,8 @@ export default function DetalleEjercicio() {
           await fetch(
             `${API_URL}/api/series/${serie.id}`,
             {
-              method: 'DELETE',
+              method:
+                'DELETE',
 
               headers: {
                 Authorization:
@@ -483,11 +581,6 @@ export default function DetalleEjercicio() {
         }
 
 
-        /*
-         * La quitamos inmediatamente
-         * de la pantalla.
-         */
-
         setSeries(
           actuales =>
             actuales.filter(
@@ -496,6 +589,21 @@ export default function DetalleEjercicio() {
                 serie.id
             )
         );
+
+
+        /*
+         * Si borramos la serie
+         * que estábamos editando,
+         * limpiamos el formulario.
+         */
+
+        if (
+          serieEditandoId ===
+          serie.id
+        ) {
+
+          cancelarEdicionSerie();
+        }
 
 
       } catch (error) {
@@ -523,7 +631,7 @@ export default function DetalleEjercicio() {
 
 
   /*
-   * CONFIRMACIÓN DE BORRADO
+   * CONFIRMAR BORRADO
    */
 
   const confirmarEliminarSerie = (
@@ -536,16 +644,24 @@ export default function DetalleEjercicio() {
       `¿Quieres eliminar la serie ${numeroSerie}?\n\n${serie.peso} kg × ${serie.repeticiones} repeticiones`,
       [
         {
-          text: 'Cancelar',
-          style: 'cancel',
+          text:
+            'Cancelar',
+
+          style:
+            'cancel',
         },
         {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () =>
-            eliminarSerie(
-              serie
-            ),
+          text:
+            'Eliminar',
+
+          style:
+            'destructive',
+
+          onPress:
+            () =>
+              eliminarSerie(
+                serie
+              ),
         },
       ]
     );
@@ -603,13 +719,23 @@ export default function DetalleEjercicio() {
       item.id;
 
 
+    const editando =
+      serieEditandoId ===
+      item.id;
+
+
     return (
 
       <View
-        style={
-          styles.serieCard
-        }
+        style={[
+          styles.serieCard,
+
+          editando &&
+            styles.serieCardEditing,
+        ]}
       >
+
+        {/* NÚMERO */}
 
         <View
           style={
@@ -629,6 +755,8 @@ export default function DetalleEjercicio() {
 
         </View>
 
+
+        {/* PESO */}
 
         <View
           style={
@@ -660,6 +788,8 @@ export default function DetalleEjercicio() {
         </View>
 
 
+        {/* REPETICIONES */}
+
         <View
           style={
             styles.serieData
@@ -690,6 +820,8 @@ export default function DetalleEjercicio() {
         </View>
 
 
+        {/* ACCIONES */}
+
         <View
           style={
             styles.serieRight
@@ -711,62 +843,126 @@ export default function DetalleEjercicio() {
           </Text>
 
 
-          <Pressable
-
-            style={({
-              pressed
-            }) => [
-
-              styles.deleteButton,
-
-              pressed &&
-                styles.deleteButtonPressed,
-
-            ]}
-
-            onPress={() =>
-              confirmarEliminarSerie(
-                item,
-                index + 1
-              )
+          <View
+            style={
+              styles.serieActions
             }
-
-            disabled={
-              eliminando
-            }
-
-            hitSlop={
-              8
-            }
-
           >
 
-            {
-              eliminando
-                ? (
+            {/* EDITAR */}
 
-                  <ActivityIndicator
-                    size="small"
-                    color="#FF6262"
-                  />
+            <Pressable
 
+              style={({
+                pressed
+              }) => [
+
+                styles.editButton,
+
+                editando &&
+                  styles.editButtonActive,
+
+                pressed &&
+                  styles.editButtonPressed,
+
+              ]}
+
+              onPress={() =>
+                iniciarEdicionSerie(
+                  item
                 )
-                : (
+              }
 
-                  <Text
-                    style={
-                      styles.deleteIcon
-                    }
-                  >
+              disabled={
+                eliminando ||
+                guardando
+              }
 
-                    ×
+              hitSlop={
+                8
+              }
 
-                  </Text>
+            >
 
+              <Text
+                style={[
+
+                  styles.editIcon,
+
+                  editando &&
+                    styles.editIconActive,
+
+                ]}
+              >
+
+                ✎
+
+              </Text>
+
+            </Pressable>
+
+
+            {/* ELIMINAR */}
+
+            <Pressable
+
+              style={({
+                pressed
+              }) => [
+
+                styles.deleteButton,
+
+                pressed &&
+                  styles.deleteButtonPressed,
+
+              ]}
+
+              onPress={() =>
+                confirmarEliminarSerie(
+                  item,
+                  index + 1
                 )
-            }
+              }
 
-          </Pressable>
+              disabled={
+                eliminando ||
+                guardando
+              }
+
+              hitSlop={
+                8
+              }
+
+            >
+
+              {
+                eliminando
+                  ? (
+
+                    <ActivityIndicator
+                      size="small"
+                      color="#FF6262"
+                    />
+
+                  )
+                  : (
+
+                    <Text
+                      style={
+                        styles.deleteIcon
+                      }
+                    >
+
+                      ×
+
+                    </Text>
+
+                  )
+              }
+
+            </Pressable>
+
+          </View>
 
         </View>
 
@@ -924,6 +1120,7 @@ export default function DetalleEjercicio() {
                 style={
                   styles.trainingName
                 }
+
                 numberOfLines={
                   1
                 }
@@ -941,6 +1138,7 @@ export default function DetalleEjercicio() {
                 style={
                   styles.title
                 }
+
                 numberOfLines={
                   1
                 }
@@ -958,7 +1156,7 @@ export default function DetalleEjercicio() {
           </View>
 
 
-          {/* AÑADIR SERIE */}
+          {/* FORMULARIO */}
 
           <View
             style={
@@ -972,7 +1170,11 @@ export default function DetalleEjercicio() {
               }
             >
 
-              NUEVA SERIE
+              {
+                serieEditandoId !== null
+                  ? 'EDITANDO SERIE'
+                  : 'NUEVA SERIE'
+              }
 
             </Text>
 
@@ -983,16 +1185,24 @@ export default function DetalleEjercicio() {
               }
             >
 
-              Registra tu serie
+              {
+                serieEditandoId !== null
+                  ? 'Corrige peso o repeticiones'
+                  : 'Registra tu serie'
+              }
 
             </Text>
 
+
+            {/* INPUTS */}
 
             <View
               style={
                 styles.inputsRow
               }
             >
+
+              {/* PESO */}
 
               <View
                 style={
@@ -1057,6 +1267,8 @@ export default function DetalleEjercicio() {
               </View>
 
 
+              {/* REPETICIONES */}
+
               <View
                 style={
                   styles.inputContainer
@@ -1111,6 +1323,8 @@ export default function DetalleEjercicio() {
             </View>
 
 
+            {/* GUARDAR */}
+
             <Pressable
 
               style={({
@@ -1154,7 +1368,11 @@ export default function DetalleEjercicio() {
                       }
                     >
 
-                      + Guardar serie
+                      {
+                        serieEditandoId !== null
+                          ? 'Guardar cambios'
+                          : '+ Guardar serie'
+                      }
 
                     </Text>
 
@@ -1163,10 +1381,54 @@ export default function DetalleEjercicio() {
 
             </Pressable>
 
+
+            {/* CANCELAR EDICIÓN */}
+
+            {
+              serieEditandoId !== null && (
+
+                <Pressable
+
+                  style={({
+                    pressed
+                  }) => [
+
+                    styles.cancelEditButton,
+
+                    pressed &&
+                      styles.cancelEditButtonPressed,
+
+                  ]}
+
+                  onPress={
+                    cancelarEdicionSerie
+                  }
+
+                  disabled={
+                    guardando
+                  }
+
+                >
+
+                  <Text
+                    style={
+                      styles.cancelEditButtonText
+                    }
+                  >
+
+                    Cancelar edición
+
+                  </Text>
+
+                </Pressable>
+
+              )
+            }
+
           </View>
 
 
-          {/* HISTORIAL */}
+          {/* CABECERA SERIES */}
 
           <View
             style={
@@ -1204,6 +1466,8 @@ export default function DetalleEjercicio() {
           </View>
 
 
+          {/* LISTADO */}
+
           {
             cargando
               ? (
@@ -1222,6 +1486,7 @@ export default function DetalleEjercicio() {
                 </View>
 
               )
+
               : series.length === 0
                 ? (
 
@@ -1255,6 +1520,7 @@ export default function DetalleEjercicio() {
                   </View>
 
                 )
+
                 : (
 
                   <FlatList
@@ -1333,9 +1599,11 @@ const styles =
 
     header: {
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
     },
 
@@ -1356,7 +1624,8 @@ const styles =
       borderColor:
         '#252D36',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1373,7 +1642,8 @@ const styles =
 
     backText: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 32,
 
@@ -1393,11 +1663,13 @@ const styles =
 
     trainingName: {
 
-      color: '#717A84',
+      color:
+        '#717A84',
 
       fontSize: 10,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
       letterSpacing: 1.5,
 
@@ -1409,11 +1681,13 @@ const styles =
 
     title: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 26,
 
-      fontWeight: '900',
+      fontWeight:
+        '900',
 
       marginTop: 3,
 
@@ -1441,11 +1715,13 @@ const styles =
 
     addLabel: {
 
-      color: '#747E89',
+      color:
+        '#747E89',
 
       fontSize: 10,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
       letterSpacing: 2,
 
@@ -1454,11 +1730,13 @@ const styles =
 
     addTitle: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 23,
 
-      fontWeight: '900',
+      fontWeight:
+        '900',
 
       marginTop: 8,
 
@@ -1467,7 +1745,8 @@ const styles =
 
     inputsRow: {
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
       gap: 12,
 
@@ -1485,11 +1764,13 @@ const styles =
 
     inputLabel: {
 
-      color: '#747E89',
+      color:
+        '#747E89',
 
       fontSize: 10,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
       letterSpacing: 1.2,
 
@@ -1512,9 +1793,11 @@ const styles =
       borderColor:
         '#252D36',
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       paddingHorizontal: 14,
 
@@ -1525,22 +1808,26 @@ const styles =
 
       flex: 1,
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 20,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
 
     unit: {
 
-      color: '#747E89',
+      color:
+        '#747E89',
 
       fontSize: 13,
 
-      fontWeight: '600',
+      fontWeight:
+        '600',
 
     },
 
@@ -1554,7 +1841,8 @@ const styles =
 
       borderRadius: 16,
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1580,20 +1868,66 @@ const styles =
 
     saveButtonText: {
 
-      color: '#0B0F14',
+      color:
+        '#0B0F14',
 
       fontSize: 15,
 
-      fontWeight: '900',
+      fontWeight:
+        '900',
+
+    },
+
+
+    cancelEditButton: {
+
+      height: 48,
+
+      borderRadius: 14,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#303842',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginTop: 10,
+
+    },
+
+
+    cancelEditButtonPressed: {
+
+      opacity: 0.65,
+
+    },
+
+
+    cancelEditButtonText: {
+
+      color:
+        '#A5AEB7',
+
+      fontSize: 13,
+
+      fontWeight:
+        '800',
 
     },
 
 
     sectionHeader: {
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'space-between',
@@ -1607,11 +1941,13 @@ const styles =
 
     sectionTitle: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 20,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
@@ -1627,13 +1963,16 @@ const styles =
       backgroundColor:
         '#252D36',
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
-      textAlign: 'center',
+      textAlign:
+        'center',
 
       lineHeight: 30,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
@@ -1642,7 +1981,8 @@ const styles =
 
       flex: 1,
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1675,9 +2015,19 @@ const styles =
 
       marginBottom: 10,
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
+
+    },
+
+
+    serieCardEditing: {
+
+      borderColor:
+        '#FFFFFF',
 
     },
 
@@ -1693,54 +2043,61 @@ const styles =
       backgroundColor:
         '#FFFFFF',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
 
-      marginRight: 15,
+      marginRight: 12,
 
     },
 
 
     serieNumberText: {
 
-      color: '#0B0F14',
+      color:
+        '#0B0F14',
 
       fontSize: 15,
 
-      fontWeight: '900',
+      fontWeight:
+        '900',
 
     },
 
 
     serieData: {
 
-      minWidth: 67,
+      minWidth: 62,
 
-      marginRight: 8,
+      marginRight: 6,
 
     },
 
 
     serieValue: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 16,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
 
     serieLabel: {
 
-      color: '#626D78',
+      color:
+        '#626D78',
 
       fontSize: 9,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
       letterSpacing: 1,
 
@@ -1753,23 +2110,102 @@ const styles =
 
       flex: 1,
 
-      flexDirection: 'row',
-
-      alignItems: 'center',
-
-      justifyContent:
+      alignItems:
         'flex-end',
 
-      gap: 9,
+      justifyContent:
+        'center',
 
     },
 
 
     dateText: {
 
-      color: '#69737D',
+      color:
+        '#69737D',
 
-      fontSize: 10,
+      fontSize: 9,
+
+      marginBottom: 6,
+
+    },
+
+
+    serieActions: {
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap: 6,
+
+    },
+
+
+    editButton: {
+
+      width: 35,
+
+      height: 35,
+
+      borderRadius: 11,
+
+      backgroundColor:
+        '#1B222A',
+
+      borderWidth: 1,
+
+      borderColor:
+        '#343E48',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+    },
+
+
+    editButtonActive: {
+
+      backgroundColor:
+        '#FFFFFF',
+
+      borderColor:
+        '#FFFFFF',
+
+    },
+
+
+    editButtonPressed: {
+
+      opacity: 0.6,
+
+    },
+
+
+    editIcon: {
+
+      color:
+        '#AEB6BE',
+
+      fontSize: 18,
+
+      lineHeight: 20,
+
+      fontWeight:
+        '800',
+
+    },
+
+
+    editIconActive: {
+
+      color:
+        '#0B0F14',
 
     },
 
@@ -1790,7 +2226,8 @@ const styles =
       borderColor:
         '#48282D',
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1807,13 +2244,15 @@ const styles =
 
     deleteIcon: {
 
-      color: '#FF6262',
+      color:
+        '#FF6262',
 
       fontSize: 23,
 
       lineHeight: 25,
 
-      fontWeight: '500',
+      fontWeight:
+        '500',
 
     },
 
@@ -1822,7 +2261,8 @@ const styles =
 
       flex: 1,
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1834,24 +2274,28 @@ const styles =
 
     emptyTitle: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 18,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
 
     emptyText: {
 
-      color: '#747E89',
+      color:
+        '#747E89',
 
       fontSize: 13,
 
       marginTop: 7,
 
-      textAlign: 'center',
+      textAlign:
+        'center',
 
     },
 
@@ -1860,7 +2304,8 @@ const styles =
 
       flex: 1,
 
-      alignItems: 'center',
+      alignItems:
+        'center',
 
       justifyContent:
         'center',
@@ -1870,11 +2315,13 @@ const styles =
 
     errorTitle: {
 
-      color: '#FFFFFF',
+      color:
+        '#FFFFFF',
 
       fontSize: 20,
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
@@ -1897,9 +2344,11 @@ const styles =
 
     errorButtonText: {
 
-      color: '#0B0F14',
+      color:
+        '#0B0F14',
 
-      fontWeight: '800',
+      fontWeight:
+        '800',
 
     },
 
