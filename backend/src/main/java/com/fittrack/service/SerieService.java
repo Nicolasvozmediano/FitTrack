@@ -388,18 +388,28 @@ public class SerieService {
                         .getId();
 
 
-        List<Ejercicio> ejerciciosMismoNombre =
-                ejercicioRepository
-                        .findByNombreIgnoreCaseAndEntrenamientoUsuarioId(
-                                ejercicioActual.getNombre(),
-                                usuarioId
-                        );
+        /*
+         * Buscamos todas las apariciones equivalentes
+         * del ejercicio.
+         *
+         * Si pertenece al catálogo nuevo, usamos el ID
+         * estable del catálogo.
+         *
+         * Si es un ejercicio antiguo que todavía no tiene
+         * catálogo asociado, usamos el nombre como respaldo.
+         */
+
+        List<Ejercicio> ejerciciosComparables =
+                obtenerEjerciciosComparables(
+                        ejercicioActual,
+                        usuarioId
+                );
 
 
         Ejercicio ejercicioAnterior =
                 buscarSesionAnterior(
                         ejercicioActual,
-                        ejerciciosMismoNombre
+                        ejerciciosComparables
                 );
 
 
@@ -497,6 +507,50 @@ public class SerieService {
                 porcentajeCambio,
                 estado
         );
+    }
+
+
+    // OBTENER EJERCICIOS COMPARABLES
+
+    private List<Ejercicio> obtenerEjerciciosComparables(
+            Ejercicio ejercicioActual,
+            Long usuarioId
+    ) {
+
+        /*
+         * NUEVO SISTEMA:
+         * utilizamos la relación estable con el catálogo.
+         */
+
+        if (ejercicioActual.getCatalogoEjercicio() != null
+                && ejercicioActual
+                .getCatalogoEjercicio()
+                .getId() != null) {
+
+            Long catalogoEjercicioId =
+                    ejercicioActual
+                            .getCatalogoEjercicio()
+                            .getId();
+
+
+            return ejercicioRepository
+                    .findByCatalogoEjercicioIdAndEntrenamientoUsuarioId(
+                            catalogoEjercicioId,
+                            usuarioId
+                    );
+        }
+
+
+        /*
+         * SISTEMA ANTIGUO:
+         * ejercicios creados antes de introducir el catálogo.
+         */
+
+        return ejercicioRepository
+                .findByNombreIgnoreCaseAndEntrenamientoUsuarioId(
+                        ejercicioActual.getNombre(),
+                        usuarioId
+                );
     }
 
 

@@ -19,7 +19,15 @@ public interface EjercicioRepository
     );
 
 
-    // BUSCAR EL MISMO EJERCICIO EN LOS ENTRENAMIENTOS DE UN USUARIO
+    // BUSCAR EL MISMO EJERCICIO POR SU ID ESTABLE DEL CATÁLOGO
+
+    List<Ejercicio> findByCatalogoEjercicioIdAndEntrenamientoUsuarioId(
+            Long catalogoEjercicioId,
+            Long usuarioId
+    );
+
+
+    // RESPALDO PARA EJERCICIOS ANTIGUOS SIN CATÁLOGO ASOCIADO
 
     List<Ejercicio> findByNombreIgnoreCaseAndEntrenamientoUsuarioId(
             String nombre,
