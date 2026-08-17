@@ -1,3 +1,4 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
@@ -1306,12 +1307,30 @@ export default function Progreso() {
 
                           return (
 
-                            <View
+                            <Pressable
                               key={
                                 `${ejercicio.catalogoEjercicioId ?? 'manual'}-${ejercicio.id}`
                               }
-                              style={
-                                styles.exerciseCard
+
+                              style={({
+                                pressed
+                              }) => [
+                                styles.exerciseCard,
+
+                                pressed &&
+                                  styles.buttonPressed,
+                              ]}
+
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/progreso-ejercicio',
+                                  params: {
+                                    ejercicioId:
+                                      ejercicio.id.toString(),
+                                    nombre:
+                                      ejercicio.nombre,
+                                  },
+                                })
                               }
                             >
 
@@ -1642,7 +1661,7 @@ export default function Progreso() {
                                   )
                               }
 
-                            </View>
+                            </Pressable>
 
                           );
 
