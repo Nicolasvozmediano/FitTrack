@@ -1,6 +1,7 @@
 package com.fittrack.service;
 
 import com.fittrack.dto.EstadisticasEjercicioResponse;
+import com.fittrack.dto.HistorialSesionEjercicioResponse;
 import com.fittrack.dto.ProgresoEjercicioResponse;
 import com.fittrack.dto.ProgresoSesionEjercicioResponse;
 import com.fittrack.dto.RecordEjercicioResponse;
@@ -68,7 +69,7 @@ public class SerieService {
     }
 
 
-    // OBTENER HISTORIAL DE UN EJERCICIO
+    // OBTENER HISTORIAL DE UN EJERCICIO CONCRETO
 
     public List<Serie> obtenerHistorialEjercicio(
             Long ejercicioId
@@ -388,17 +389,6 @@ public class SerieService {
                         .getId();
 
 
-        /*
-         * Buscamos todas las apariciones equivalentes
-         * del ejercicio.
-         *
-         * Si pertenece al catálogo nuevo, usamos el ID
-         * estable del catálogo.
-         *
-         * Si es un ejercicio antiguo que todavía no tiene
-         * catálogo asociado, usamos el nombre como respaldo.
-         */
-
         List<Ejercicio> ejerciciosComparables =
                 obtenerEjerciciosComparables(
                         ejercicioActual,
@@ -506,6 +496,194 @@ public class SerieService {
                 diferenciaPeso,
                 porcentajeCambio,
                 estado
+        );
+    }
+
+
+    // HISTORIAL COMPLETO ENTRE SESIONES
+
+    public List<HistorialSesionEjercicioResponse>
+    obtenerHistorialEntreSesiones(
+            Long ejercicioActualId
+    ) {
+
+        Ejercicio ejercicioActual =
+                ejercicioRepository
+                        .findById(ejercicioActualId)
+                        .orElse(null);
+
+
+        if (ejercicioActual == null
+                || ejercicioActual.getEntrenamiento() == null
+                || ejercicioActual.getEntrenamiento().getUsuario() == null) {
+
+            return List.of();
+        }
+
+
+        Long usuarioId =
+                ejercicioActual
+                        .getEntrenamiento()
+                        .getUsuario()
+                        .getId();
+
+
+        List<Ejercicio> ejerciciosComparables =
+                obtenerEjerciciosComparables(
+                        ejercicioActual,
+                        usuarioId
+                );
+
+
+        return ejerciciosComparables
+                .stream()
+
+                .filter(ejercicio ->
+                        ejercicio.getId() != null
+                                && ejercicio.getEntrenamiento() != null
+                                && ejercicio
+                                .getEntrenamiento()
+                                .getId() != null
+                )
+
+                .sorted(
+                        Comparator
+                                .comparing(
+                                        (Ejercicio ejercicio) ->
+                                                ejercicio
+                                                        .getEntrenamiento()
+                                                        .getFecha(),
+                                        Comparator.nullsLast(
+                                                Comparator.naturalOrder()
+                                        )
+                                )
+                                .thenComparing(
+                                        ejercicio ->
+                                                ejercicio
+                                                        .getEntrenamiento()
+                                                        .getId()
+                                )
+                )
+
+                .map(
+                        this::crearResumenHistorialSesion
+                )
+
+                .filter(
+                        resumen ->
+                                resumen != null
+                )
+
+                .toList();
+    }
+
+
+    // CREAR RESUMEN DE UNA SESIÓN
+
+    private HistorialSesionEjercicioResponse
+    crearResumenHistorialSesion(
+            Ejercicio ejercicio
+    ) {
+
+        List<Serie> series =
+                serieRepository
+                        .findByEjercicioId(
+                                ejercicio.getId()
+                        );
+
+
+        Double pesoMaximo =
+                null;
+
+        double volumenTotal =
+                0.0;
+
+        int totalSeries =
+                0;
+
+        int totalRepeticiones =
+                0;
+
+
+        for (Serie serie : series) {
+
+            if (serie.getPeso() == null
+                    || serie.getRepeticiones() == null) {
+
+                continue;
+            }
+
+
+            double peso =
+                    serie.getPeso();
+
+
+            int repeticiones =
+                    serie.getRepeticiones();
+
+
+            totalSeries++;
+
+
+            totalRepeticiones +=
+                    repeticiones;
+
+
+            volumenTotal +=
+                    peso * repeticiones;
+
+
+            if (pesoMaximo == null
+                    || peso > pesoMaximo) {
+
+                pesoMaximo =
+                        peso;
+            }
+        }
+
+
+        /*
+         * Si el ejercicio existe en el entrenamiento
+         * pero todavía no tiene ninguna serie válida,
+         * no lo incluimos como punto del historial.
+         */
+
+        if (totalSeries == 0) {
+
+            return null;
+        }
+
+
+        Long catalogoEjercicioId =
+                null;
+
+
+        if (ejercicio.getCatalogoEjercicio()
+                != null) {
+
+            catalogoEjercicioId =
+                    ejercicio
+                            .getCatalogoEjercicio()
+                            .getId();
+        }
+
+
+        return new HistorialSesionEjercicioResponse(
+                ejercicio.getId(),
+                ejercicio
+                        .getEntrenamiento()
+                        .getId(),
+                catalogoEjercicioId,
+                ejercicio.getNombre(),
+                ejercicio
+                        .getEntrenamiento()
+                        .getFecha(),
+                pesoMaximo,
+                redondearDosDecimales(
+                        volumenTotal
+                ),
+                totalSeries,
+                totalRepeticiones
         );
     }
 

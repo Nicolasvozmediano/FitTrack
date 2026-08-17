@@ -1,6 +1,7 @@
 package com.fittrack.controller;
 
 import com.fittrack.dto.EstadisticasEjercicioResponse;
+import com.fittrack.dto.HistorialSesionEjercicioResponse;
 import com.fittrack.dto.ProgresoEjercicioResponse;
 import com.fittrack.dto.ProgresoSesionEjercicioResponse;
 import com.fittrack.dto.RecordEjercicioResponse;
@@ -55,6 +56,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -64,6 +66,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -82,6 +85,7 @@ public class SerieController {
         String errorValidacion =
                 validarSerieRequest(request);
 
+
         if (errorValidacion != null) {
 
             return ResponseEntity
@@ -93,17 +97,21 @@ public class SerieController {
         Serie serie =
                 new Serie();
 
+
         serie.setPeso(
                 request.getPeso()
         );
+
 
         serie.setRepeticiones(
                 request.getRepeticiones()
         );
 
+
         serie.setFecha(
                 LocalDate.now()
         );
+
 
         serie.setEjercicio(
                 ejercicio
@@ -132,6 +140,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -141,6 +150,7 @@ public class SerieController {
                 serieService
                         .buscarPorId(serieId)
                         .orElse(null);
+
 
         if (serie == null) {
             return ResponseEntity.notFound().build();
@@ -160,6 +170,7 @@ public class SerieController {
         String errorValidacion =
                 validarSerieRequest(request);
 
+
         if (errorValidacion != null) {
 
             return ResponseEntity
@@ -171,6 +182,7 @@ public class SerieController {
         serie.setPeso(
                 request.getPeso()
         );
+
 
         serie.setRepeticiones(
                 request.getRepeticiones()
@@ -198,6 +210,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -207,6 +220,7 @@ public class SerieController {
                 serieService
                         .buscarPorId(serieId)
                         .orElse(null);
+
 
         if (serie == null) {
             return ResponseEntity.notFound().build();
@@ -243,6 +257,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -252,6 +267,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -279,7 +295,7 @@ public class SerieController {
     }
 
 
-    // HISTORIAL DE UN EJERCICIO
+    // HISTORIAL DE UN EJERCICIO CONCRETO
 
     @GetMapping("/historial/ejercicio/{ejercicioId}")
     public ResponseEntity<?> obtenerHistorialEjercicio(
@@ -290,6 +306,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -299,6 +316,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -326,6 +344,56 @@ public class SerieController {
     }
 
 
+    // HISTORIAL COMPLETO DEL MISMO EJERCICIO ENTRE SESIONES
+
+    @GetMapping("/historial-sesiones/ejercicio/{ejercicioId}")
+    public ResponseEntity<?> obtenerHistorialEntreSesiones(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long ejercicioId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+
+        Ejercicio ejercicio =
+                ejercicioRepository
+                        .findById(ejercicioId)
+                        .orElse(null);
+
+
+        if (ejercicio == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+
+        if (!ejercicioPerteneceUsuario(
+                ejercicio,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+
+        List<HistorialSesionEjercicioResponse> respuesta =
+                serieService
+                        .obtenerHistorialEntreSesiones(
+                                ejercicioId
+                        );
+
+
+        return ResponseEntity.ok(
+                respuesta
+        );
+    }
+
+
     // ESTADÍSTICAS DEL EJERCICIO
 
     @GetMapping("/estadisticas/ejercicio/{ejercicioId}")
@@ -337,6 +405,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -346,6 +415,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -381,6 +451,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -390,6 +461,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -425,6 +497,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -434,6 +507,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -469,6 +543,7 @@ public class SerieController {
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
 
+
         if (usuario == null) {
             return ResponseEntity.status(401).build();
         }
@@ -478,6 +553,7 @@ public class SerieController {
                 ejercicioRepository
                         .findById(ejercicioId)
                         .orElse(null);
+
 
         if (ejercicio == null) {
             return ResponseEntity.notFound().build();
@@ -518,6 +594,7 @@ public class SerieController {
 
         Usuario usuario =
                 obtenerUsuarioDesdeToken(authorization);
+
 
         if (usuario == null) {
             return ResponseEntity.status(401).build();
