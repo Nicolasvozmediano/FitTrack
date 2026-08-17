@@ -37,6 +37,35 @@ type Estadisticas = {
 };
 
 
+type EjercicioUsuario = {
+  id: number;
+  nombre: string;
+  catalogoEjercicioId: number | null;
+};
+
+
+type ProgresoSesion = {
+  nombreEjercicio: string;
+  ejercicioAnteriorId: number;
+  ejercicioActualId: number;
+  entrenamientoAnteriorId: number;
+  entrenamientoActualId: number;
+  fechaAnterior: string;
+  fechaActual: string;
+  pesoMaximoAnterior: number;
+  pesoMaximoActual: number;
+  diferenciaPeso: number;
+  porcentajeCambio: number;
+  estado: string;
+};
+
+
+type EjercicioConProgreso =
+  EjercicioUsuario & {
+    progreso: ProgresoSesion | null;
+  };
+
+
 export default function Progreso() {
 
   const [
@@ -45,6 +74,15 @@ export default function Progreso() {
   ] =
     useState<Estadisticas | null>(
       null
+    );
+
+
+  const [
+    ejercicios,
+    setEjercicios,
+  ] =
+    useState<EjercicioConProgreso[]>(
+      []
     );
 
 
@@ -81,10 +119,191 @@ export default function Progreso() {
 
 
   /*
-   * CARGAR ESTADÍSTICAS
+   * CERRAR SESIÓN SI EL TOKEN YA NO ES VÁLIDO
    */
 
-  const cargarEstadisticas =
+  const cerrarSesion =
+    async () => {
+
+      await AsyncStorage.removeItem(
+        'fittrack_token'
+      );
+
+
+      router.replace('/');
+    };
+
+
+  /*
+   * OBTENER EJERCICIOS ÚNICOS
+   */
+
+  const obtenerEjerciciosUnicos = (
+    lista: EjercicioUsuario[]
+  ) => {
+
+    const mapa =
+      new Map<
+        string,
+        EjercicioUsuario
+      >();
+
+
+    lista.forEach(
+      ejercicio => {
+
+        const clave =
+          ejercicio.catalogoEjercicioId
+            ? `catalogo-${ejercicio.catalogoEjercicioId}`
+            : `nombre-${ejercicio.nombre
+                .trim()
+                .toLowerCase()}`;
+
+
+        const existente =
+          mapa.get(clave);
+
+
+        if (
+          !existente
+          || ejercicio.id >
+            existente.id
+        ) {
+
+          mapa.set(
+            clave,
+            ejercicio
+          );
+        }
+
+      }
+    );
+
+
+    return Array
+      .from(
+        mapa.values()
+      )
+      .sort(
+        (a, b) =>
+          a.nombre.localeCompare(
+            b.nombre,
+            'es'
+          )
+      );
+  };
+
+
+  /*
+   * CARGAR PROGRESO DE UN EJERCICIO
+   */
+
+  const cargarProgresoEjercicio =
+    async (
+      ejercicio: EjercicioUsuario,
+      token: string
+    ):
+      Promise<EjercicioConProgreso> => {
+
+      try {
+
+        const response =
+          await fetch(
+            `${API_URL}/api/series/progreso-sesion/ejercicio/${ejercicio.id}`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+
+        if (
+          response.status === 401
+        ) {
+
+          throw new Error(
+            'UNAUTHORIZED'
+          );
+        }
+
+
+        /*
+         * 404 significa que todavía no existe
+         * una sesión anterior comparable.
+         */
+
+        if (
+          response.status === 404
+        ) {
+
+          return {
+            ...ejercicio,
+            progreso: null,
+          };
+        }
+
+
+        if (!response.ok) {
+
+          console.log(
+            'Error cargando progreso del ejercicio:',
+            ejercicio.id,
+            response.status
+          );
+
+
+          return {
+            ...ejercicio,
+            progreso: null,
+          };
+        }
+
+
+        const progreso:
+          ProgresoSesion =
+            await response.json();
+
+
+        return {
+          ...ejercicio,
+          progreso,
+        };
+
+
+      } catch (error) {
+
+        if (
+          error instanceof Error
+          && error.message ===
+            'UNAUTHORIZED'
+        ) {
+
+          throw error;
+        }
+
+
+        console.log(
+          'Error conectando con progreso:',
+          error
+        );
+
+
+        return {
+          ...ejercicio,
+          progreso: null,
+        };
+      }
+
+    };
+
+
+  /*
+   * CARGAR TODOS LOS DATOS
+   */
+
+  const cargarDatos =
     async () => {
 
       try {
@@ -101,58 +320,126 @@ export default function Progreso() {
         }
 
 
-        const response =
-          await fetch(
-            `${API_URL}/api/entrenamientos/estadisticas`,
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
+        const [
+          responseEstadisticas,
+          responseEjercicios,
+        ] =
+          await Promise.all([
+            fetch(
+              `${API_URL}/api/entrenamientos/estadisticas`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            ),
+
+            fetch(
+              `${API_URL}/api/ejercicios/mis-ejercicios`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                },
+              }
+            ),
+          ]);
 
 
         if (
-          response.status === 401
+          responseEstadisticas.status === 401
+          || responseEjercicios.status === 401
         ) {
 
-          await AsyncStorage.removeItem(
-            'fittrack_token'
-          );
-
-
-          router.replace('/');
+          await cerrarSesion();
 
           return;
         }
 
 
-        if (!response.ok) {
+        if (
+          !responseEstadisticas.ok
+        ) {
 
           console.log(
-            'Error cargando progreso:',
-            response.status
+            'Error cargando estadísticas:',
+            responseEstadisticas.status
           );
 
           return;
         }
 
 
-        const data:
+        if (
+          !responseEjercicios.ok
+        ) {
+
+          console.log(
+            'Error cargando ejercicios:',
+            responseEjercicios.status
+          );
+
+          return;
+        }
+
+
+        const datosEstadisticas:
           Estadisticas =
-            await response.json();
+            await responseEstadisticas
+              .json();
+
+
+        const datosEjercicios:
+          EjercicioUsuario[] =
+            await responseEjercicios
+              .json();
 
 
         setEstadisticas(
-          data
+          datosEstadisticas
+        );
+
+
+        const ejerciciosUnicos =
+          obtenerEjerciciosUnicos(
+            datosEjercicios
+          );
+
+
+        const ejerciciosConProgreso =
+          await Promise.all(
+            ejerciciosUnicos.map(
+              ejercicio =>
+                cargarProgresoEjercicio(
+                  ejercicio,
+                  token
+                )
+            )
+          );
+
+
+        setEjercicios(
+          ejerciciosConProgreso
         );
 
 
       } catch (error) {
 
+        if (
+          error instanceof Error
+          && error.message ===
+            'UNAUTHORIZED'
+        ) {
+
+          await cerrarSesion();
+
+          return;
+        }
+
+
         console.log(
-          'Error conectando con backend:',
+          'Error cargando progreso:',
           error
         );
 
@@ -173,7 +460,7 @@ export default function Progreso() {
 
     useCallback(() => {
 
-      cargarEstadisticas();
+      cargarDatos();
 
     }, [])
 
@@ -181,7 +468,7 @@ export default function Progreso() {
 
 
   /*
-   * CÁLCULOS
+   * CÁLCULOS GENERALES
    */
 
   const totalEntrenamientos =
@@ -256,6 +543,69 @@ export default function Progreso() {
       'es-ES'
     );
 
+  };
+
+
+  const formatearPeso = (
+    valor: number
+  ) => {
+
+    return valor.toLocaleString(
+      'es-ES',
+      {
+        maximumFractionDigits: 2,
+      }
+    );
+
+  };
+
+
+  const formatearFecha = (
+    fecha: string
+  ) => {
+
+    if (!fecha) {
+      return '';
+    }
+
+
+    const partes =
+      fecha.split('-');
+
+
+    if (
+      partes.length !== 3
+    ) {
+
+      return fecha;
+    }
+
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  };
+
+
+  const colorEstado = (
+    estado: string
+  ) => {
+
+    if (
+      estado === 'MEJORA'
+    ) {
+
+      return '#35D07F';
+    }
+
+
+    if (
+      estado === 'BAJA'
+    ) {
+
+      return '#FF6B6B';
+    }
+
+
+    return '#A6B0BA';
   };
 
 
@@ -396,7 +746,7 @@ export default function Progreso() {
             }
           >
 
-            Aquí podrás ver cómo está evolucionando tu entrenamiento con el tiempo.
+            Sigue tus entrenamientos y comprueba si tus marcas están mejorando con el tiempo.
 
           </Text>
 
@@ -437,7 +787,7 @@ export default function Progreso() {
               <>
 
 
-                {/* TOTALES */}
+                {/* RESUMEN GENERAL */}
 
                 <View
                   style={
@@ -639,7 +989,11 @@ export default function Progreso() {
                     }
                   >
 
-                    <View>
+                    <View
+                      style={
+                        styles.detailInfo
+                      }
+                    >
 
                       <Text
                         style={
@@ -695,7 +1049,11 @@ export default function Progreso() {
                     }
                   >
 
-                    <View>
+                    <View
+                      style={
+                        styles.detailInfo
+                      }
+                    >
 
                       <Text
                         style={
@@ -751,7 +1109,11 @@ export default function Progreso() {
                     }
                   >
 
-                    <View>
+                    <View
+                      style={
+                        styles.detailInfo
+                      }
+                    >
 
                       <Text
                         style={
@@ -807,7 +1169,11 @@ export default function Progreso() {
                     }
                   >
 
-                    <View>
+                    <View
+                      style={
+                        styles.detailInfo
+                      }
+                    >
 
                       <Text
                         style={
@@ -852,28 +1218,28 @@ export default function Progreso() {
                 </View>
 
 
-                {/* PRÓXIMA FUNCIÓN */}
+                {/* EVOLUCIÓN POR EJERCICIO */}
 
                 <View
                   style={
-                    styles.nextCard
+                    styles.progressHeader
                   }
                 >
 
                   <Text
                     style={
-                      styles.nextLabel
+                      styles.progressLabel
                     }
                   >
 
-                    PRÓXIMAMENTE
+                    RENDIMIENTO
 
                   </Text>
 
 
                   <Text
                     style={
-                      styles.nextTitle
+                      styles.progressTitle
                     }
                   >
 
@@ -884,15 +1250,407 @@ export default function Progreso() {
 
                   <Text
                     style={
-                      styles.nextText
+                      styles.progressText
                     }
                   >
 
-                    El siguiente paso será comparar tus marcas, volumen y rendimiento entre sesiones.
+                    Comparamos el peso máximo de tus dos últimas sesiones del mismo ejercicio.
 
                   </Text>
 
                 </View>
+
+
+                {
+                  ejercicios.length === 0
+                    ? (
+
+                      <View
+                        style={
+                          styles.emptyCard
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.emptyTitle
+                          }
+                        >
+
+                          Todavía no hay ejercicios
+
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.emptyText
+                          }
+                        >
+
+                          Cuando registres ejercicios en tus entrenamientos aparecerán aquí.
+
+                        </Text>
+
+                      </View>
+
+                    )
+                    : (
+
+                      ejercicios.map(
+                        ejercicio => {
+
+                          const progreso =
+                            ejercicio.progreso;
+
+
+                          return (
+
+                            <View
+                              key={
+                                `${ejercicio.catalogoEjercicioId ?? 'manual'}-${ejercicio.id}`
+                              }
+                              style={
+                                styles.exerciseCard
+                              }
+                            >
+
+                              <View
+                                style={
+                                  styles.exerciseHeader
+                                }
+                              >
+
+                                <View
+                                  style={
+                                    styles.exerciseHeaderInfo
+                                  }
+                                >
+
+                                  <Text
+                                    style={
+                                      styles.exerciseName
+                                    }
+                                  >
+
+                                    {
+                                      ejercicio.nombre
+                                    }
+
+                                  </Text>
+
+
+                                  <Text
+                                    style={
+                                      styles.exerciseSubtitle
+                                    }
+                                  >
+
+                                    {
+                                      progreso
+                                        ? 'Últimas 2 sesiones'
+                                        : 'Sin comparación todavía'
+                                    }
+
+                                  </Text>
+
+                                </View>
+
+
+                                {
+                                  progreso && (
+
+                                    <View
+                                      style={[
+                                        styles.statusBadge,
+                                        {
+                                          borderColor:
+                                            colorEstado(
+                                              progreso.estado
+                                            ),
+                                        },
+                                      ]}
+                                    >
+
+                                      <Text
+                                        style={[
+                                          styles.statusText,
+                                          {
+                                            color:
+                                              colorEstado(
+                                                progreso.estado
+                                              ),
+                                          },
+                                        ]}
+                                      >
+
+                                        {
+                                          progreso.estado
+                                        }
+
+                                      </Text>
+
+                                    </View>
+
+                                  )
+                                }
+
+                              </View>
+
+
+                              {
+                                progreso
+                                  ? (
+
+                                    <>
+
+                                      <View
+                                        style={
+                                          styles.weightComparison
+                                        }
+                                      >
+
+                                        <View
+                                          style={
+                                            styles.weightBlock
+                                          }
+                                        >
+
+                                          <Text
+                                            style={
+                                              styles.weightLabel
+                                            }
+                                          >
+
+                                            Anterior
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={
+                                              styles.weightValue
+                                            }
+                                          >
+
+                                            {
+                                              formatearPeso(
+                                                progreso.pesoMaximoAnterior
+                                              )
+                                            } kg
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={
+                                              styles.dateText
+                                            }
+                                          >
+
+                                            {
+                                              formatearFecha(
+                                                progreso.fechaAnterior
+                                              )
+                                            }
+
+                                          </Text>
+
+                                        </View>
+
+
+                                        <Text
+                                          style={
+                                            styles.arrow
+                                          }
+                                        >
+
+                                          →
+
+                                        </Text>
+
+
+                                        <View
+                                          style={
+                                            styles.weightBlock
+                                          }
+                                        >
+
+                                          <Text
+                                            style={
+                                              styles.weightLabel
+                                            }
+                                          >
+
+                                            Actual
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={
+                                              styles.weightValue
+                                            }
+                                          >
+
+                                            {
+                                              formatearPeso(
+                                                progreso.pesoMaximoActual
+                                              )
+                                            } kg
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={
+                                              styles.dateText
+                                            }
+                                          >
+
+                                            {
+                                              formatearFecha(
+                                                progreso.fechaActual
+                                              )
+                                            }
+
+                                          </Text>
+
+                                        </View>
+
+                                      </View>
+
+
+                                      <View
+                                        style={
+                                          styles.changeRow
+                                        }
+                                      >
+
+                                        <View>
+
+                                          <Text
+                                            style={
+                                              styles.changeLabel
+                                            }
+                                          >
+
+                                            Diferencia
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={[
+                                              styles.changeValue,
+                                              {
+                                                color:
+                                                  colorEstado(
+                                                    progreso.estado
+                                                  ),
+                                              },
+                                            ]}
+                                          >
+
+                                            {
+                                              progreso.diferenciaPeso > 0
+                                                ? '+'
+                                                : ''
+                                            }
+
+                                            {
+                                              formatearPeso(
+                                                progreso.diferenciaPeso
+                                              )
+                                            } kg
+
+                                          </Text>
+
+                                        </View>
+
+
+                                        <View
+                                          style={
+                                            styles.changeRight
+                                          }
+                                        >
+
+                                          <Text
+                                            style={
+                                              styles.changeLabel
+                                            }
+                                          >
+
+                                            Cambio
+
+                                          </Text>
+
+
+                                          <Text
+                                            style={[
+                                              styles.changeValue,
+                                              {
+                                                color:
+                                                  colorEstado(
+                                                    progreso.estado
+                                                  ),
+                                              },
+                                            ]}
+                                          >
+
+                                            {
+                                              progreso.porcentajeCambio > 0
+                                                ? '+'
+                                                : ''
+                                            }
+
+                                            {
+                                              progreso.porcentajeCambio.toFixed(
+                                                2
+                                              )
+                                            } %
+
+                                          </Text>
+
+                                        </View>
+
+                                      </View>
+
+                                    </>
+
+                                  )
+                                  : (
+
+                                    <View
+                                      style={
+                                        styles.noProgressBox
+                                      }
+                                    >
+
+                                      <Text
+                                        style={
+                                          styles.noProgressText
+                                        }
+                                      >
+
+                                        Registra este mismo ejercicio en otra sesión para empezar a medir tu evolución.
+
+                                      </Text>
+
+                                    </View>
+
+                                  )
+                              }
+
+                            </View>
+
+                          );
+
+                        }
+                      )
+
+                    )
+                }
 
 
                 {/* ACTUALIZAR */}
@@ -911,7 +1669,7 @@ export default function Progreso() {
                   ]}
 
                   onPress={
-                    cargarEstadisticas
+                    cargarDatos
                   }
 
                 >
@@ -1286,6 +2044,13 @@ const styles =
     },
 
 
+    detailInfo: {
+
+      flex: 1,
+
+    },
+
+
     detailLabel: {
 
       color:
@@ -1334,26 +2099,16 @@ const styles =
     },
 
 
-    nextCard: {
+    progressHeader: {
 
-      backgroundColor:
-        '#11171D',
+      marginTop: 32,
 
-      borderRadius: 20,
-
-      borderWidth: 1,
-
-      borderColor:
-        '#252D36',
-
-      padding: 20,
-
-      marginTop: 28,
+      marginBottom: 14,
 
     },
 
 
-    nextLabel: {
+    progressLabel: {
 
       color:
         '#717A84',
@@ -1368,22 +2123,22 @@ const styles =
     },
 
 
-    nextTitle: {
+    progressTitle: {
 
       color:
         '#FFFFFF',
 
-      fontSize: 20,
+      fontSize: 22,
 
       fontWeight:
         '900',
 
-      marginTop: 8,
+      marginTop: 7,
 
     },
 
 
-    nextText: {
+    progressText: {
 
       color:
         '#7D8791',
@@ -1392,7 +2147,309 @@ const styles =
 
       lineHeight: 20,
 
-      marginTop: 7,
+      marginTop: 6,
+
+    },
+
+
+    exerciseCard: {
+
+      backgroundColor:
+        '#151B22',
+
+      borderRadius: 20,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#252D36',
+
+      padding: 18,
+
+      marginBottom: 12,
+
+    },
+
+
+    exerciseHeader: {
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'flex-start',
+
+      justifyContent:
+        'space-between',
+
+      gap: 12,
+
+    },
+
+
+    exerciseHeaderInfo: {
+
+      flex: 1,
+
+    },
+
+
+    exerciseName: {
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 17,
+
+      fontWeight:
+        '900',
+
+      lineHeight: 23,
+
+    },
+
+
+    exerciseSubtitle: {
+
+      color:
+        '#747E89',
+
+      fontSize: 11,
+
+      marginTop: 5,
+
+    },
+
+
+    statusBadge: {
+
+      borderWidth: 1,
+
+      borderRadius: 999,
+
+      paddingHorizontal: 10,
+
+      paddingVertical: 6,
+
+    },
+
+
+    statusText: {
+
+      fontSize: 9,
+
+      fontWeight:
+        '900',
+
+      letterSpacing: 1,
+
+    },
+
+
+    weightComparison: {
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      marginTop: 22,
+
+    },
+
+
+    weightBlock: {
+
+      flex: 1,
+
+    },
+
+
+    weightLabel: {
+
+      color:
+        '#717A84',
+
+      fontSize: 10,
+
+      fontWeight:
+        '700',
+
+      textTransform:
+        'uppercase',
+
+      letterSpacing: 1,
+
+    },
+
+
+    weightValue: {
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 23,
+
+      fontWeight:
+        '900',
+
+      marginTop: 5,
+
+    },
+
+
+    dateText: {
+
+      color:
+        '#68727D',
+
+      fontSize: 10,
+
+      marginTop: 4,
+
+    },
+
+
+    arrow: {
+
+      color:
+        '#717A84',
+
+      fontSize: 24,
+
+      fontWeight:
+        '800',
+
+      marginHorizontal: 10,
+
+    },
+
+
+    changeRow: {
+
+      flexDirection:
+        'row',
+
+      justifyContent:
+        'space-between',
+
+      borderTopWidth: 1,
+
+      borderTopColor:
+        '#252D36',
+
+      marginTop: 18,
+
+      paddingTop: 16,
+
+    },
+
+
+    changeRight: {
+
+      alignItems:
+        'flex-end',
+
+    },
+
+
+    changeLabel: {
+
+      color:
+        '#717A84',
+
+      fontSize: 10,
+
+      fontWeight:
+        '700',
+
+      textTransform:
+        'uppercase',
+
+      letterSpacing: 1,
+
+    },
+
+
+    changeValue: {
+
+      fontSize: 17,
+
+      fontWeight:
+        '900',
+
+      marginTop: 5,
+
+    },
+
+
+    noProgressBox: {
+
+      backgroundColor:
+        '#11171D',
+
+      borderRadius: 14,
+
+      padding: 14,
+
+      marginTop: 16,
+
+    },
+
+
+    noProgressText: {
+
+      color:
+        '#7D8791',
+
+      fontSize: 12,
+
+      lineHeight: 18,
+
+    },
+
+
+    emptyCard: {
+
+      backgroundColor:
+        '#151B22',
+
+      borderRadius: 20,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#252D36',
+
+      padding: 20,
+
+    },
+
+
+    emptyTitle: {
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 16,
+
+      fontWeight:
+        '800',
+
+    },
+
+
+    emptyText: {
+
+      color:
+        '#7D8791',
+
+      fontSize: 12,
+
+      lineHeight: 19,
+
+      marginTop: 6,
 
     },
 

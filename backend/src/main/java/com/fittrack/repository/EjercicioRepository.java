@@ -19,6 +19,13 @@ public interface EjercicioRepository
     );
 
 
+    // OBTENER TODOS LOS EJERCICIOS DE UN USUARIO
+
+    List<Ejercicio> findByEntrenamientoUsuarioId(
+            Long usuarioId
+    );
+
+
     // BUSCAR EL MISMO EJERCICIO POR SU ID ESTABLE DEL CATÁLOGO
 
     List<Ejercicio> findByCatalogoEjercicioIdAndEntrenamientoUsuarioId(

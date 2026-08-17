@@ -58,6 +58,16 @@ public class EjercicioService {
     }
 
 
+    // OBTENER TODOS LOS EJERCICIOS DE UN USUARIO
+
+    public List<Ejercicio> obtenerEjerciciosPorUsuario(
+            Long usuarioId
+    ) {
+        return ejercicioRepository
+                .findByEntrenamientoUsuarioId(usuarioId);
+    }
+
+
     // OBTENER TODOS LOS EJERCICIOS
 
     public List<Ejercicio> obtenerTodos() {

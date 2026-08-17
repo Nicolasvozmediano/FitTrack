@@ -416,6 +416,52 @@ public class EjercicioController {
     }
 
 
+    // OBTENER TODOS LOS EJERCICIOS DEL USUARIO AUTENTICADO
+
+    @GetMapping("/mis-ejercicios")
+    public ResponseEntity<?> obtenerMisEjercicios(
+            @RequestHeader("Authorization") String authorization
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(
+                        authorization
+                );
+
+
+        if (usuario == null) {
+
+            return ResponseEntity
+                    .status(401)
+                    .build();
+        }
+
+
+        List<EjercicioSimpleResponse> respuesta =
+                ejercicioService
+                        .obtenerEjerciciosPorUsuario(
+                                usuario.getId()
+                        )
+                        .stream()
+                        .map(
+                                ejercicio ->
+                                        new EjercicioSimpleResponse(
+                                                ejercicio.getId(),
+                                                ejercicio.getNombre(),
+                                                obtenerCatalogoEjercicioId(
+                                                        ejercicio
+                                                )
+                                        )
+                        )
+                        .toList();
+
+
+        return ResponseEntity.ok(
+                respuesta
+        );
+    }
+
+
     // OBTENER ID DEL CATÁLOGO SI EXISTE
 
     private Long obtenerCatalogoEjercicioId(
