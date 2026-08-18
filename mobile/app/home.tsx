@@ -192,6 +192,16 @@ export default function Home() {
     };
 
 
+  const abrirPerfil =
+    () => {
+
+      router.push(
+        '/perfil'
+      );
+
+    };
+
+
   /*
    * PANTALLA
    */
@@ -269,7 +279,7 @@ export default function Home() {
             ]}
 
             onPress={
-              cerrarSesion
+              abrirPerfil
             }
 
           >
