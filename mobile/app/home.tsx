@@ -202,6 +202,16 @@ export default function Home() {
     };
 
 
+  const abrirEstadisticas =
+    () => {
+
+      router.push(
+        '/estadisticas'
+      );
+
+    };
+
+
   /*
    * PANTALLA
    */
@@ -756,13 +766,9 @@ export default function Home() {
 
             ]}
 
-            onPress={() => {
-
-              console.log(
-                'Estadísticas pendiente'
-              );
-
-            }}
+            onPress={
+              abrirEstadisticas
+            }
 
           >
 
