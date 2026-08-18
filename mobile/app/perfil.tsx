@@ -33,6 +33,10 @@ type UsuarioPerfil = {
   nombre: string;
   email: string;
   fechaRegistro: string;
+  peso: number | null;
+  alturaCm: number | null;
+  objetivo: string | null;
+  nivelExperiencia: string | null;
 };
 
 
@@ -676,45 +680,245 @@ export default function Perfil() {
                     </View>
 
 
-                    {/* FUTURO PERFIL FITNESS */}
+                    {/* PERFIL DEPORTIVO */}
 
                     <View
                       style={
-                        styles.futureCard
+                        styles.sportsCard
                       }
                     >
 
-                      <Text
+                      <View
                         style={
-                          styles.futureLabel
+                          styles.sportsHeader
                         }
                       >
 
-                        PRÓXIMAMENTE
+                        <View
+                          style={
+                            styles.sportsHeaderInfo
+                          }
+                        >
 
-                      </Text>
+                          <Text
+                            style={
+                              styles.sportsLabel
+                            }
+                          >
+
+                            PERFIL DEPORTIVO
+
+                          </Text>
 
 
-                      <Text
+                          <Text
+                            style={
+                              styles.sportsTitle
+                            }
+                          >
+
+                            Tus datos
+
+                          </Text>
+
+                        </View>
+
+
+                        <Pressable
+
+                          style={({
+                            pressed
+                          }) => [
+
+                            styles.editButton,
+
+                            pressed &&
+                              styles.buttonPressed,
+
+                          ]}
+
+                          onPress={() =>
+                            router.push(
+                              '/editar-perfil'
+                            )
+                          }
+
+                        >
+
+                          <Text
+                            style={
+                              styles.editButtonText
+                            }
+                          >
+
+                            Editar
+
+                          </Text>
+
+                        </Pressable>
+
+                      </View>
+
+
+                      <View
                         style={
-                          styles.futureTitle
+                          styles.sportsGrid
                         }
                       >
 
-                        Tu perfil deportivo
+                        <View
+                          style={
+                            styles.sportsStat
+                          }
+                        >
 
-                      </Text>
+                          <Text
+                            style={
+                              styles.sportsStatLabel
+                            }
+                          >
+
+                            Peso
+
+                          </Text>
 
 
-                      <Text
+                          <Text
+                            style={
+                              styles.sportsStatValue
+                            }
+                          >
+
+                            {
+                              usuario.peso !== null
+                                ? `${usuario.peso.toLocaleString(
+                                    'es-ES',
+                                    {
+                                      maximumFractionDigits: 2,
+                                    }
+                                  )} kg`
+                                : 'Sin definir'
+                            }
+
+                          </Text>
+
+                        </View>
+
+
+                        <View
+                          style={
+                            styles.sportsStat
+                          }
+                        >
+
+                          <Text
+                            style={
+                              styles.sportsStatLabel
+                            }
+                          >
+
+                            Altura
+
+                          </Text>
+
+
+                          <Text
+                            style={
+                              styles.sportsStatValue
+                            }
+                          >
+
+                            {
+                              usuario.alturaCm !== null
+                                ? `${usuario.alturaCm} cm`
+                                : 'Sin definir'
+                            }
+
+                          </Text>
+
+                        </View>
+
+                      </View>
+
+
+                      <View
                         style={
-                          styles.futureText
+                          styles.sportsSeparator
+                        }
+                      />
+
+
+                      <View
+                        style={
+                          styles.sportsDetail
                         }
                       >
 
-                        Aquí podremos guardar tu peso, altura y objetivo para personalizar FitTrack.
+                        <Text
+                          style={
+                            styles.sportsDetailLabel
+                          }
+                        >
 
-                      </Text>
+                          Objetivo
+
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.sportsDetailValue
+                          }
+                        >
+
+                          {
+                            usuario.objetivo ??
+                              'Sin definir'
+                          }
+
+                        </Text>
+
+                      </View>
+
+
+                      <View
+                        style={
+                          styles.sportsSeparator
+                        }
+                      />
+
+
+                      <View
+                        style={
+                          styles.sportsDetail
+                        }
+                      >
+
+                        <Text
+                          style={
+                            styles.sportsDetailLabel
+                          }
+                        >
+
+                          Nivel
+
+                        </Text>
+
+
+                        <Text
+                          style={
+                            styles.sportsDetailValue
+                          }
+                        >
+
+                          {
+                            usuario.nivelExperiencia ??
+                              'Sin definir'
+                          }
+
+                        </Text>
+
+                      </View>
 
                     </View>
 
@@ -1222,7 +1426,7 @@ const styles =
     },
 
 
-    futureCard: {
+    sportsCard: {
 
       backgroundColor:
         '#151B22',
@@ -1241,7 +1445,30 @@ const styles =
     },
 
 
-    futureLabel: {
+    sportsHeader: {
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+
+      gap: 14,
+
+    },
+
+
+    sportsHeaderInfo: {
+
+      flex: 1,
+
+    },
+
+
+    sportsLabel: {
 
       color:
         '#717A84',
@@ -1256,31 +1483,177 @@ const styles =
     },
 
 
-    futureTitle: {
+    sportsTitle: {
 
       color:
         '#FFFFFF',
 
-      fontSize: 18,
+      fontSize: 19,
 
       fontWeight:
         '900',
 
-      marginTop: 8,
+      marginTop: 7,
 
     },
 
 
-    futureText: {
+    editButton: {
+
+      minWidth: 72,
+
+      height: 38,
+
+      borderRadius: 12,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#303842',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      paddingHorizontal: 14,
+
+    },
+
+
+    editButtonText: {
 
       color:
-        '#7D8791',
+        '#FFFFFF',
 
       fontSize: 12,
 
-      lineHeight: 19,
+      fontWeight:
+        '800',
 
-      marginTop: 7,
+    },
+
+
+    sportsGrid: {
+
+      flexDirection:
+        'row',
+
+      gap: 12,
+
+      marginTop: 20,
+
+    },
+
+
+    sportsStat: {
+
+      flex: 1,
+
+      backgroundColor:
+        '#11171D',
+
+      borderRadius: 15,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#202830',
+
+      padding: 15,
+
+    },
+
+
+    sportsStatLabel: {
+
+      color:
+        '#717A84',
+
+      fontSize: 9,
+
+      fontWeight:
+        '800',
+
+      textTransform:
+        'uppercase',
+
+      letterSpacing: 1,
+
+    },
+
+
+    sportsStatValue: {
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 16,
+
+      fontWeight:
+        '900',
+
+      marginTop: 6,
+
+    },
+
+
+    sportsSeparator: {
+
+      height: 1,
+
+      backgroundColor:
+        '#252D36',
+
+      marginVertical: 16,
+
+    },
+
+
+    sportsDetail: {
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+
+      gap: 16,
+
+    },
+
+
+    sportsDetailLabel: {
+
+      color:
+        '#747E89',
+
+      fontSize: 12,
+
+      fontWeight:
+        '700',
+
+    },
+
+
+    sportsDetailValue: {
+
+      flex: 1,
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 13,
+
+      fontWeight:
+        '800',
+
+      textAlign:
+        'right',
 
     },
 
