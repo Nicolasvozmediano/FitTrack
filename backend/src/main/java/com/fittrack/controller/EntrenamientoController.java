@@ -1,5 +1,6 @@
 package com.fittrack.controller;
 
+import com.fittrack.dto.EntrenamientoAnalisisResponse;
 import com.fittrack.dto.EstadisticasUsuarioResponse;
 import com.fittrack.dto.HistorialEntrenamientoResponse;
 import com.fittrack.dto.ResumenEntrenamientoResponse;
@@ -383,6 +384,52 @@ public class EntrenamientoController {
                         .obtenerResumenEntrenamiento(
                                 entrenamientoId
                         );
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+    // OBTENER DATOS COMPLETOS PARA ANÁLISIS DEL ENTRENAMIENTO
+
+    @GetMapping("/{entrenamientoId}/analisis")
+    public ResponseEntity<?> obtenerAnalisisEntrenamiento(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        EntrenamientoAnalisisResponse respuesta =
+                entrenamientoService
+                        .obtenerAnalisisEntrenamiento(
+                                entrenamientoId
+                        );
+
+        if (respuesta == null) {
+            return ResponseEntity.notFound().build();
+        }
 
         return ResponseEntity.ok(respuesta);
     }

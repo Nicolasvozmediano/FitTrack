@@ -1,8 +1,11 @@
 package com.fittrack.service;
 
+import com.fittrack.dto.EjercicioAnalisisResponse;
+import com.fittrack.dto.EntrenamientoAnalisisResponse;
 import com.fittrack.dto.EstadisticasUsuarioResponse;
 import com.fittrack.dto.HistorialEntrenamientoResponse;
 import com.fittrack.dto.ResumenEntrenamientoResponse;
+import com.fittrack.dto.SerieAnalisisResponse;
 import com.fittrack.model.Ejercicio;
 import com.fittrack.model.Entrenamiento;
 import com.fittrack.model.Serie;
@@ -10,6 +13,7 @@ import com.fittrack.repository.EntrenamientoRepository;
 
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -33,7 +37,10 @@ public class EntrenamientoService {
     public Entrenamiento guardarEntrenamiento(
             Entrenamiento entrenamiento
     ) {
-        return entrenamientoRepository.save(entrenamiento);
+
+        return entrenamientoRepository.save(
+                entrenamiento
+        );
     }
 
 
@@ -42,7 +49,10 @@ public class EntrenamientoService {
     public Optional<Entrenamiento> buscarPorId(
             Long entrenamientoId
     ) {
-        return entrenamientoRepository.findById(entrenamientoId);
+
+        return entrenamientoRepository.findById(
+                entrenamientoId
+        );
     }
 
 
@@ -51,13 +61,17 @@ public class EntrenamientoService {
     public void eliminarEntrenamiento(
             Long entrenamientoId
     ) {
-        entrenamientoRepository.deleteById(entrenamientoId);
+
+        entrenamientoRepository.deleteById(
+                entrenamientoId
+        );
     }
 
 
     // OBTENER TODOS LOS ENTRENAMIENTOS
 
     public List<Entrenamiento> obtenerTodos() {
+
         return entrenamientoRepository.findAll();
     }
 
@@ -67,7 +81,10 @@ public class EntrenamientoService {
     public List<Entrenamiento> obtenerPorUsuario(
             Long usuarioId
     ) {
-        return entrenamientoRepository.findByUsuarioId(usuarioId);
+
+        return entrenamientoRepository.findByUsuarioId(
+                usuarioId
+        );
     }
 
 
@@ -78,16 +95,19 @@ public class EntrenamientoService {
             Long usuarioId
     ) {
 
-        if (entrenamiento == null
-                || entrenamiento.getUsuario() == null
-                || entrenamiento.getUsuario().getId() == null
-                || usuarioId == null) {
+        if (
+                entrenamiento == null
+                        || entrenamiento.getUsuario() == null
+                        || entrenamiento.getUsuario().getId() == null
+                        || usuarioId == null
+        ) {
 
             return false;
         }
 
 
-        return entrenamiento.getUsuario()
+        return entrenamiento
+                .getUsuario()
                 .getId()
                 .equals(usuarioId);
     }
@@ -106,11 +126,14 @@ public class EntrenamientoService {
 
 
         if (entrenamiento == null) {
+
             return null;
         }
 
 
-        return convertirAResumen(entrenamiento);
+        return convertirAResumen(
+                entrenamiento
+        );
     }
 
 
@@ -131,7 +154,9 @@ public class EntrenamientoService {
                                 )
                         )
                 )
-                .map(this::convertirAHistorial)
+                .map(
+                        this::convertirAHistorial
+                )
                 .toList();
     }
 
@@ -150,54 +175,79 @@ public class EntrenamientoService {
         int totalEntrenamientos =
                 entrenamientosUsuario.size();
 
-        int totalEjercicios = 0;
 
-        int totalSeries = 0;
-
-        double volumenTotal = 0.0;
-
-        int duracionTotalMinutos = 0;
+        int totalEjercicios =
+                0;
 
 
-        for (Entrenamiento entrenamiento :
-                entrenamientosUsuario) {
+        int totalSeries =
+                0;
 
 
-            if (entrenamiento.getDuracionMinutos() != null) {
+        double volumenTotal =
+                0.0;
+
+
+        int duracionTotalMinutos =
+                0;
+
+
+        for (
+                Entrenamiento entrenamiento :
+                entrenamientosUsuario
+        ) {
+
+            if (
+                    entrenamiento.getDuracionMinutos() != null
+            ) {
 
                 duracionTotalMinutos +=
                         entrenamiento.getDuracionMinutos();
             }
 
 
-            if (entrenamiento.getEjercicios() == null) {
+            if (
+                    entrenamiento.getEjercicios() == null
+            ) {
+
                 continue;
             }
 
 
             totalEjercicios +=
-                    entrenamiento.getEjercicios().size();
+                    entrenamiento
+                            .getEjercicios()
+                            .size();
 
 
-            for (Ejercicio ejercicio :
-                    entrenamiento.getEjercicios()) {
+            for (
+                    Ejercicio ejercicio :
+                    entrenamiento.getEjercicios()
+            ) {
 
+                if (
+                        ejercicio.getSeries() == null
+                ) {
 
-                if (ejercicio.getSeries() == null) {
                     continue;
                 }
 
 
                 totalSeries +=
-                        ejercicio.getSeries().size();
+                        ejercicio
+                                .getSeries()
+                                .size();
 
 
-                for (Serie serie :
-                        ejercicio.getSeries()) {
+                for (
+                        Serie serie :
+                        ejercicio.getSeries()
+                ) {
 
-
-                    if (serie.getPeso() == null
-                            || serie.getRepeticiones() == null) {
+                    if (
+                            serie.getPeso() == null
+                                    || serie.getRepeticiones() == null
+                    ) {
 
                         continue;
                     }
@@ -215,8 +265,301 @@ public class EntrenamientoService {
                 totalEntrenamientos,
                 totalEjercicios,
                 totalSeries,
-                volumenTotal,
+                redondearDosDecimales(
+                        volumenTotal
+                ),
                 duracionTotalMinutos
+        );
+    }
+
+
+    /*
+     * OBTENER DATOS COMPLETOS
+     * PARA EL FUTURO ANÁLISIS
+     */
+
+    public EntrenamientoAnalisisResponse obtenerAnalisisEntrenamiento(
+            Long entrenamientoId
+    ) {
+
+        Entrenamiento entrenamiento =
+                entrenamientoRepository
+                        .findById(entrenamientoId)
+                        .orElse(null);
+
+
+        if (
+                entrenamiento == null
+        ) {
+
+            return null;
+        }
+
+
+        return convertirAAnalisis(
+                entrenamiento
+        );
+    }
+
+
+    /*
+     * CONVERTIR ENTRENAMIENTO
+     * EN DATOS DE ANÁLISIS
+     */
+
+    private EntrenamientoAnalisisResponse convertirAAnalisis(
+            Entrenamiento entrenamiento
+    ) {
+
+        List<EjercicioAnalisisResponse> ejerciciosAnalisis =
+                new ArrayList<>();
+
+
+        int totalEjercicios =
+                0;
+
+
+        int totalSeries =
+                0;
+
+
+        int totalRepeticiones =
+                0;
+
+
+        double volumenTotal =
+                0.0;
+
+
+        if (
+                entrenamiento.getEjercicios() != null
+        ) {
+
+            totalEjercicios =
+                    entrenamiento
+                            .getEjercicios()
+                            .size();
+
+
+            for (
+                    Ejercicio ejercicio :
+                    entrenamiento.getEjercicios()
+            ) {
+
+                EjercicioAnalisisResponse ejercicioAnalisis =
+                        convertirEjercicioAAnalisis(
+                                ejercicio
+                        );
+
+
+                ejerciciosAnalisis.add(
+                        ejercicioAnalisis
+                );
+
+
+                if (
+                        ejercicioAnalisis.getTotalSeries() != null
+                ) {
+
+                    totalSeries +=
+                            ejercicioAnalisis.getTotalSeries();
+                }
+
+
+                if (
+                        ejercicioAnalisis.getTotalRepeticiones() != null
+                ) {
+
+                    totalRepeticiones +=
+                            ejercicioAnalisis
+                                    .getTotalRepeticiones();
+                }
+
+
+                if (
+                        ejercicioAnalisis.getVolumenTotal() != null
+                ) {
+
+                    volumenTotal +=
+                            ejercicioAnalisis
+                                    .getVolumenTotal();
+                }
+            }
+        }
+
+
+        return new EntrenamientoAnalisisResponse(
+                entrenamiento.getId(),
+                entrenamiento.getNombre(),
+                entrenamiento.getFecha(),
+                entrenamiento.getDuracionMinutos(),
+                totalEjercicios,
+                totalSeries,
+                totalRepeticiones,
+                redondearDosDecimales(
+                        volumenTotal
+                ),
+                ejerciciosAnalisis
+        );
+    }
+
+
+    /*
+     * CONVERTIR UN EJERCICIO
+     * EN DATOS DE ANÁLISIS
+     */
+
+    private EjercicioAnalisisResponse convertirEjercicioAAnalisis(
+            Ejercicio ejercicio
+    ) {
+
+        List<SerieAnalisisResponse> seriesAnalisis =
+                new ArrayList<>();
+
+
+        int totalSeries =
+                0;
+
+
+        int totalRepeticiones =
+                0;
+
+
+        double volumenTotal =
+                0.0;
+
+
+        Double pesoMaximo =
+                null;
+
+
+        if (
+                ejercicio.getSeries() != null
+        ) {
+
+            totalSeries =
+                    ejercicio
+                            .getSeries()
+                            .size();
+
+
+            for (
+                    Serie serie :
+                    ejercicio.getSeries()
+            ) {
+
+                Double volumenSerie =
+                        calcularVolumenSerie(
+                                serie
+                        );
+
+
+                if (
+                        serie.getRepeticiones() != null
+                ) {
+
+                    totalRepeticiones +=
+                            serie.getRepeticiones();
+                }
+
+
+                if (
+                        volumenSerie != null
+                ) {
+
+                    volumenTotal +=
+                            volumenSerie;
+                }
+
+
+                if (
+                        serie.getPeso() != null
+                ) {
+
+                    if (
+                            pesoMaximo == null
+                                    || serie.getPeso() > pesoMaximo
+                    ) {
+
+                        pesoMaximo =
+                                serie.getPeso();
+                    }
+                }
+
+
+                SerieAnalisisResponse serieAnalisis =
+                        new SerieAnalisisResponse(
+                                serie.getId(),
+                                serie.getPeso(),
+                                serie.getRepeticiones(),
+                                volumenSerie,
+                                serie.getFecha()
+                        );
+
+
+                seriesAnalisis.add(
+                        serieAnalisis
+                );
+            }
+        }
+
+
+        Long catalogoEjercicioId =
+                null;
+
+
+        if (
+                ejercicio.getCatalogoEjercicio() != null
+        ) {
+
+            catalogoEjercicioId =
+                    ejercicio
+                            .getCatalogoEjercicio()
+                            .getId();
+        }
+
+
+        return new EjercicioAnalisisResponse(
+                ejercicio.getId(),
+                catalogoEjercicioId,
+                ejercicio.getNombre(),
+                totalSeries,
+                totalRepeticiones,
+                pesoMaximo,
+                redondearDosDecimales(
+                        volumenTotal
+                ),
+                seriesAnalisis
+        );
+    }
+
+
+    /*
+     * CALCULAR VOLUMEN
+     * DE UNA SERIE
+     */
+
+    private Double calcularVolumenSerie(
+            Serie serie
+    ) {
+
+        if (
+                serie == null
+                        || serie.getPeso() == null
+                        || serie.getRepeticiones() == null
+        ) {
+
+            return null;
+        }
+
+
+        double volumen =
+                serie.getPeso()
+                        * serie.getRepeticiones();
+
+
+        return redondearDosDecimales(
+                volumen
         );
     }
 
@@ -227,36 +570,56 @@ public class EntrenamientoService {
             Entrenamiento entrenamiento
     ) {
 
-        int totalEjercicios = 0;
-        int totalSeries = 0;
-        double volumenTotal = 0.0;
+        int totalEjercicios =
+                0;
 
 
-        if (entrenamiento.getEjercicios() != null) {
+        int totalSeries =
+                0;
+
+
+        double volumenTotal =
+                0.0;
+
+
+        if (
+                entrenamiento.getEjercicios() != null
+        ) {
 
             totalEjercicios =
-                    entrenamiento.getEjercicios().size();
+                    entrenamiento
+                            .getEjercicios()
+                            .size();
 
 
-            for (Ejercicio ejercicio :
-                    entrenamiento.getEjercicios()) {
+            for (
+                    Ejercicio ejercicio :
+                    entrenamiento.getEjercicios()
+            ) {
 
+                if (
+                        ejercicio.getSeries() == null
+                ) {
 
-                if (ejercicio.getSeries() == null) {
                     continue;
                 }
 
 
                 totalSeries +=
-                        ejercicio.getSeries().size();
+                        ejercicio
+                                .getSeries()
+                                .size();
 
 
-                for (Serie serie :
-                        ejercicio.getSeries()) {
+                for (
+                        Serie serie :
+                        ejercicio.getSeries()
+                ) {
 
-
-                    if (serie.getPeso() == null
-                            || serie.getRepeticiones() == null) {
+                    if (
+                            serie.getPeso() == null
+                                    || serie.getRepeticiones() == null
+                    ) {
 
                         continue;
                     }
@@ -277,7 +640,9 @@ public class EntrenamientoService {
                 entrenamiento.getDuracionMinutos(),
                 totalEjercicios,
                 totalSeries,
-                volumenTotal
+                redondearDosDecimales(
+                        volumenTotal
+                )
         );
     }
 
@@ -289,7 +654,9 @@ public class EntrenamientoService {
     ) {
 
         ResumenEntrenamientoResponse resumen =
-                convertirAResumen(entrenamiento);
+                convertirAResumen(
+                        entrenamiento
+                );
 
 
         return new HistorialEntrenamientoResponse(
@@ -301,5 +668,19 @@ public class EntrenamientoService {
                 resumen.getTotalSeries(),
                 resumen.getVolumenTotal()
         );
+    }
+
+
+    /*
+     * REDONDEAR A DOS DECIMALES
+     */
+
+    private Double redondearDosDecimales(
+            double valor
+    ) {
+
+        return Math.round(
+                valor * 100.0
+        ) / 100.0;
     }
 }
