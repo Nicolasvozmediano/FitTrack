@@ -3,7 +3,7 @@ package com.fittrack.controller;
 import com.fittrack.dto.AuthResponse;
 import com.fittrack.dto.ErrorResponse;
 import com.fittrack.dto.LoginRequest;
-import com.fittrack.dto.LoginResponse;
+import com.fittrack.dto.PerfilDeportivoRequest;
 import com.fittrack.dto.RegistroRequest;
 import com.fittrack.dto.UsuarioResponse;
 import com.fittrack.model.Usuario;
@@ -22,6 +22,7 @@ public class UsuarioController {
     private final UsuarioService usuarioService;
     private final JwtService jwtService;
 
+
     public UsuarioController(
             UsuarioService usuarioService,
             JwtService jwtService
@@ -30,6 +31,10 @@ public class UsuarioController {
         this.jwtService = jwtService;
     }
 
+
+    /*
+     * REGISTRO
+     */
 
     @PostMapping
     public ResponseEntity<?> crearUsuario(
@@ -43,18 +48,28 @@ public class UsuarioController {
         usuario.setContrasena(registroRequest.getContrasena());
         usuario.setFechaRegistro(registroRequest.getFechaRegistro());
 
-        String error = usuarioService.validarRegistro(usuario);
+
+        String error =
+                usuarioService.validarRegistro(usuario);
+
 
         if (error != null) {
 
             ErrorResponse respuestaError =
                     new ErrorResponse(error);
 
-            if (error.equals("El correo ya está registrado")) {
+
+            if (
+                    error.equals(
+                            "El correo ya está registrado"
+                    )
+            ) {
+
                 return ResponseEntity
                         .status(409)
                         .body(respuestaError);
             }
+
 
             return ResponseEntity
                     .badRequest()
@@ -79,6 +94,9 @@ public class UsuarioController {
     }
 
 
+    /*
+     * LOGIN
+     */
 
     @PostMapping("/login")
     public ResponseEntity<?> login(
@@ -91,13 +109,17 @@ public class UsuarioController {
         usuario.setContrasena(loginRequest.getContrasena());
 
 
-        String error = usuarioService.validarLogin(usuario);
+        String error =
+                usuarioService.validarLogin(usuario);
+
 
         if (error != null) {
 
             return ResponseEntity
                     .badRequest()
-                    .body(new ErrorResponse(error));
+                    .body(
+                            new ErrorResponse(error)
+                    );
         }
 
 
@@ -153,13 +175,14 @@ public class UsuarioController {
     }
 
 
-
+    /*
+     * OBTENER PERFIL
+     */
 
     @GetMapping("/perfil")
     public ResponseEntity<?> perfil(
             @RequestHeader("Authorization") String authorization
     ) {
-
 
         String token =
                 authorization.substring(7);
@@ -182,15 +205,95 @@ public class UsuarioController {
 
 
         UsuarioResponse respuesta =
-                new UsuarioResponse(
-                        usuario.getId(),
-                        usuario.getNombre(),
-                        usuario.getEmail(),
-                        usuario.getFechaRegistro()
+                crearUsuarioResponse(usuario);
+
+
+        return ResponseEntity.ok(respuesta);
+    }
+
+
+    /*
+     * ACTUALIZAR PERFIL DEPORTIVO
+     */
+
+    @PutMapping("/perfil")
+    public ResponseEntity<?> actualizarPerfil(
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody PerfilDeportivoRequest request
+    ) {
+
+        String token =
+                authorization.substring(7);
+
+
+        String email =
+                jwtService.obtenerEmail(token);
+
+
+        String error =
+                usuarioService.validarPerfilDeportivo(
+                        request.getPeso(),
+                        request.getAlturaCm(),
+                        request.getObjetivo(),
+                        request.getNivelExperiencia()
+                );
+
+
+        if (error != null) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            new ErrorResponse(error)
+                    );
+        }
+
+
+        Usuario usuarioActualizado =
+                usuarioService.actualizarPerfilDeportivo(
+                        email,
+                        request.getPeso(),
+                        request.getAlturaCm(),
+                        request.getObjetivo(),
+                        request.getNivelExperiencia()
+                );
+
+
+        if (usuarioActualizado == null) {
+
+            return ResponseEntity
+                    .notFound()
+                    .build();
+        }
+
+
+        UsuarioResponse respuesta =
+                crearUsuarioResponse(
+                        usuarioActualizado
                 );
 
 
         return ResponseEntity.ok(respuesta);
     }
 
+
+    /*
+     * CREAR RESPUESTA DE USUARIO
+     */
+
+    private UsuarioResponse crearUsuarioResponse(
+            Usuario usuario
+    ) {
+
+        return new UsuarioResponse(
+                usuario.getId(),
+                usuario.getNombre(),
+                usuario.getEmail(),
+                usuario.getFechaRegistro(),
+                usuario.getPeso(),
+                usuario.getAlturaCm(),
+                usuario.getObjetivo(),
+                usuario.getNivelExperiencia()
+        );
+    }
 }
