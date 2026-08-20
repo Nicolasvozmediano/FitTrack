@@ -2,6 +2,7 @@ package com.fittrack.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fittrack.dto.EjercicioAnalisisResponse;
 import com.fittrack.dto.EntrenamientoAnalisisResponse;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -29,6 +31,10 @@ public class OpenAiService {
     private String modelo;
 
 
+    @Value("${openai.enabled:false}")
+    private boolean openAiEnabled;
+
+
     public OpenAiService(
             ObjectMapper objectMapper
     ) {
@@ -42,7 +48,7 @@ public class OpenAiService {
     }
 
 
-    // ANALIZAR UN ENTRENAMIENTO CON OPENAI
+    // ANALIZAR ENTRENAMIENTO
 
     public String analizarEntrenamiento(
             EntrenamientoAnalisisResponse entrenamiento
@@ -56,6 +62,22 @@ public class OpenAiService {
         }
 
 
+        /*
+         * MODO DESARROLLO GRATUITO
+         */
+
+        if (!openAiEnabled) {
+
+            return generarAnalisisSimulado(
+                    entrenamiento
+            );
+        }
+
+
+        /*
+         * MODO OPENAI REAL
+         */
+
         comprobarApiKey();
 
 
@@ -64,7 +86,9 @@ public class OpenAiService {
             String datosEntrenamiento =
                     objectMapper
                             .writerWithDefaultPrettyPrinter()
-                            .writeValueAsString(entrenamiento);
+                            .writeValueAsString(
+                                    entrenamiento
+                            );
 
 
             String instrucciones =
@@ -72,8 +96,10 @@ public class OpenAiService {
                     Eres el asistente de entrenamiento de FitTrack.
 
                     Analiza exclusivamente los datos del entrenamiento
-                    que recibes. No inventes pesos, repeticiones,
-                    ejercicios, volumen ni información que no aparezca
+                    que recibes.
+
+                    No inventes pesos, repeticiones, ejercicios,
+                    volumen ni información que no aparezca
                     en los datos.
 
                     Tu respuesta debe estar en español y ser clara,
@@ -81,17 +107,6 @@ public class OpenAiService {
 
                     No realices diagnósticos médicos ni afirmaciones
                     sobre lesiones o enfermedades.
-
-                    Analiza aspectos como:
-
-                    - volumen total de entrenamiento;
-                    - número de ejercicios y series;
-                    - repeticiones realizadas;
-                    - pesos utilizados;
-                    - peso máximo registrado;
-                    - distribución general del trabajo;
-                    - posibles puntos positivos;
-                    - aspectos que podrían mejorarse en futuras sesiones.
 
                     Devuelve exactamente estas cuatro secciones:
 
@@ -102,12 +117,10 @@ public class OpenAiService {
                     Entre 1 y 3 puntos concretos basados en los datos.
 
                     A MEJORAR
-                    Entre 1 y 3 aspectos concretos. Si los datos son
-                    insuficientes para afirmarlo, indícalo.
+                    Entre 1 y 3 aspectos concretos.
 
                     PRÓXIMA SESIÓN
-                    Una recomendación práctica y prudente para la
-                    siguiente sesión.
+                    Una recomendación práctica y prudente.
 
                     No uses tablas.
                     No añadas información inventada.
@@ -119,7 +132,9 @@ public class OpenAiService {
                     Analiza este entrenamiento registrado en FitTrack:
 
                     %s
-                    """.formatted(datosEntrenamiento);
+                    """.formatted(
+                            datosEntrenamiento
+                    );
 
 
             Map<String, Object> body =
@@ -167,10 +182,13 @@ public class OpenAiService {
 
 
             String texto =
-                    extraerTextoRespuesta(respuesta);
+                    extraerTextoRespuesta(
+                            respuesta
+                    );
 
 
-            if (texto == null || texto.isBlank()) {
+            if (texto == null
+                    || texto.isBlank()) {
 
                 throw new IllegalStateException(
                         "OpenAI no devolvió texto de análisis"
@@ -197,11 +215,305 @@ public class OpenAiService {
     }
 
 
-    // COMPROBAR QUE EXISTE API KEY
+    // GENERAR ANÁLISIS SIMULADO GRATUITO
+
+    private String generarAnalisisSimulado(
+            EntrenamientoAnalisisResponse entrenamiento
+    ) {
+
+        int totalEjercicios =
+                entrenamiento.getTotalEjercicios() != null
+                        ? entrenamiento.getTotalEjercicios()
+                        : 0;
+
+
+        int totalSeries =
+                entrenamiento.getTotalSeries() != null
+                        ? entrenamiento.getTotalSeries()
+                        : 0;
+
+
+        int totalRepeticiones =
+                entrenamiento.getTotalRepeticiones() != null
+                        ? entrenamiento.getTotalRepeticiones()
+                        : 0;
+
+
+        double volumenTotal =
+                entrenamiento.getVolumenTotal() != null
+                        ? entrenamiento.getVolumenTotal()
+                        : 0.0;
+
+
+        List<EjercicioAnalisisResponse> ejercicios =
+                entrenamiento.getEjercicios();
+
+
+        String ejercicioPrincipal =
+                obtenerEjercicioConMayorPeso(
+                        ejercicios
+                );
+
+
+        Double pesoMaximo =
+                obtenerPesoMaximo(
+                        ejercicios
+                );
+
+
+        StringBuilder analisis =
+                new StringBuilder();
+
+
+        analisis.append("RESUMEN\n");
+
+        analisis.append(
+                "Has registrado "
+        );
+
+        analisis.append(
+                totalEjercicios
+        );
+
+        analisis.append(
+                totalEjercicios == 1
+                        ? " ejercicio, "
+                        : " ejercicios, "
+        );
+
+        analisis.append(
+                totalSeries
+        );
+
+        analisis.append(
+                totalSeries == 1
+                        ? " serie y "
+                        : " series y "
+        );
+
+        analisis.append(
+                totalRepeticiones
+        );
+
+        analisis.append(
+                " repeticiones, con un volumen total de "
+        );
+
+        analisis.append(
+                formatearNumero(
+                        volumenTotal
+                )
+        );
+
+        analisis.append(
+                " kg."
+        );
+
+
+        analisis.append("\n\nPUNTOS POSITIVOS\n");
+
+        analisis.append(
+                "- El entrenamiento ha quedado registrado con pesos, repeticiones y volumen, lo que permitirá comparar futuras sesiones."
+        );
+
+
+        if (pesoMaximo != null
+                && ejercicioPrincipal != null) {
+
+            analisis.append("\n- El peso máximo registrado ha sido de ");
+
+            analisis.append(
+                    formatearNumero(
+                            pesoMaximo
+                    )
+            );
+
+            analisis.append(
+                    " kg en "
+            );
+
+            analisis.append(
+                    ejercicioPrincipal
+            );
+
+            analisis.append(".");
+        }
+
+
+        if (totalRepeticiones > 0) {
+
+            analisis.append(
+                    "\n- Has completado "
+            );
+
+            analisis.append(
+                    totalRepeticiones
+            );
+
+            analisis.append(
+                    " repeticiones registradas en la sesión."
+            );
+        }
+
+
+        analisis.append("\n\nA MEJORAR\n");
+
+
+        if (totalEjercicios <= 1) {
+
+            analisis.append(
+                    "- Solo hay un ejercicio registrado. Con estos datos no se puede valorar todavía la distribución completa de una sesión."
+            );
+
+        } else {
+
+            analisis.append(
+                    "- Conviene seguir registrando todas las series para poder valorar mejor cómo se distribuye el volumen entre ejercicios."
+            );
+        }
+
+
+        if (entrenamiento.getDuracionMinutos() == null) {
+
+            analisis.append(
+                    "\n- No hay duración registrada. Añadirla permitirá relacionar el volumen realizado con el tiempo total de entrenamiento."
+            );
+        }
+
+
+        analisis.append("\n\nPRÓXIMA SESIÓN\n");
+
+        analisis.append(
+                "Mantén el registro completo de todas las series. "
+        );
+
+        analisis.append(
+                "En la próxima sesión intenta comparar pesos y repeticiones con esta sesión antes de aumentar la carga. "
+        );
+
+        analisis.append(
+                "Si completas las mismas repeticiones con buena técnica y el esfuerzo es adecuado, podrás valorar una progresión gradual."
+        );
+
+
+        return analisis.toString();
+    }
+
+
+    // OBTENER EJERCICIO CON MAYOR PESO
+
+    private String obtenerEjercicioConMayorPeso(
+            List<EjercicioAnalisisResponse> ejercicios
+    ) {
+
+        if (ejercicios == null
+                || ejercicios.isEmpty()) {
+
+            return null;
+        }
+
+
+        EjercicioAnalisisResponse mejorEjercicio =
+                null;
+
+
+        for (EjercicioAnalisisResponse ejercicio : ejercicios) {
+
+            if (ejercicio == null
+                    || ejercicio.getPesoMaximo() == null) {
+
+                continue;
+            }
+
+
+            if (mejorEjercicio == null
+                    || mejorEjercicio.getPesoMaximo() == null
+                    || ejercicio.getPesoMaximo()
+                    > mejorEjercicio.getPesoMaximo()) {
+
+                mejorEjercicio =
+                        ejercicio;
+            }
+        }
+
+
+        if (mejorEjercicio == null) {
+
+            return null;
+        }
+
+
+        return mejorEjercicio.getNombre();
+    }
+
+
+    // OBTENER PESO MÁXIMO DE LA SESIÓN
+
+    private Double obtenerPesoMaximo(
+            List<EjercicioAnalisisResponse> ejercicios
+    ) {
+
+        if (ejercicios == null
+                || ejercicios.isEmpty()) {
+
+            return null;
+        }
+
+
+        Double pesoMaximo =
+                null;
+
+
+        for (EjercicioAnalisisResponse ejercicio : ejercicios) {
+
+            if (ejercicio == null
+                    || ejercicio.getPesoMaximo() == null) {
+
+                continue;
+            }
+
+
+            if (pesoMaximo == null
+                    || ejercicio.getPesoMaximo() > pesoMaximo) {
+
+                pesoMaximo =
+                        ejercicio.getPesoMaximo();
+            }
+        }
+
+
+        return pesoMaximo;
+    }
+
+
+    // FORMATEAR NÚMEROS
+
+    private String formatearNumero(
+            double numero
+    ) {
+
+        if (numero == Math.rint(numero)) {
+
+            return String.valueOf(
+                    (long) numero
+            );
+        }
+
+
+        return String.format(
+                java.util.Locale.US,
+                "%.2f",
+                numero
+        );
+    }
+
+
+    // COMPROBAR API KEY
 
     private void comprobarApiKey() {
 
-        if (apiKey == null || apiKey.isBlank()) {
+        if (apiKey == null
+                || apiKey.isBlank()) {
 
             throw new IllegalStateException(
                     "OPENAI_API_KEY no está configurada"
@@ -210,7 +522,7 @@ public class OpenAiService {
     }
 
 
-    // EXTRAER TEXTO DE LA RESPUESTA
+    // EXTRAER TEXTO DE OPENAI
 
     private String extraerTextoRespuesta(
             JsonNode respuesta
@@ -223,7 +535,9 @@ public class OpenAiService {
 
 
         JsonNode output =
-                respuesta.path("output");
+                respuesta.path(
+                        "output"
+                );
 
 
         if (!output.isArray()) {
@@ -239,7 +553,8 @@ public class OpenAiService {
         for (JsonNode item : output) {
 
             if (!"message".equals(
-                    item.path("type").asText()
+                    item.path("type")
+                            .asText()
             )) {
 
                 continue;
@@ -247,7 +562,9 @@ public class OpenAiService {
 
 
             JsonNode contenido =
-                    item.path("content");
+                    item.path(
+                            "content"
+                    );
 
 
             if (!contenido.isArray()) {
@@ -259,7 +576,8 @@ public class OpenAiService {
             for (JsonNode parte : contenido) {
 
                 if (!"output_text".equals(
-                        parte.path("type").asText()
+                        parte.path("type")
+                                .asText()
                 )) {
 
                     continue;
@@ -283,7 +601,9 @@ public class OpenAiService {
                 }
 
 
-                texto.append(fragmento);
+                texto.append(
+                        fragmento
+                );
             }
         }
 
