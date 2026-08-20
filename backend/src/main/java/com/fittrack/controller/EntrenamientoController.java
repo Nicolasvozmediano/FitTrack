@@ -1,5 +1,6 @@
 package com.fittrack.controller;
 
+import com.fittrack.dto.AnalisisEntrenamientoIaResponse;
 import com.fittrack.dto.EntrenamientoAnalisisResponse;
 import com.fittrack.dto.EstadisticasUsuarioResponse;
 import com.fittrack.dto.HistorialEntrenamientoResponse;
@@ -9,6 +10,7 @@ import com.fittrack.model.Entrenamiento;
 import com.fittrack.model.Usuario;
 import com.fittrack.security.JwtService;
 import com.fittrack.service.EntrenamientoService;
+import com.fittrack.service.OpenAiService;
 import com.fittrack.service.UsuarioService;
 
 import org.springframework.http.ResponseEntity;
@@ -25,16 +27,19 @@ public class EntrenamientoController {
     private final EntrenamientoService entrenamientoService;
     private final UsuarioService usuarioService;
     private final JwtService jwtService;
+    private final OpenAiService openAiService;
 
 
     public EntrenamientoController(
             EntrenamientoService entrenamientoService,
             UsuarioService usuarioService,
-            JwtService jwtService
+            JwtService jwtService,
+            OpenAiService openAiService
     ) {
         this.entrenamientoService = entrenamientoService;
         this.usuarioService = usuarioService;
         this.jwtService = jwtService;
+        this.openAiService = openAiService;
     }
 
 
@@ -432,6 +437,75 @@ public class EntrenamientoController {
         }
 
         return ResponseEntity.ok(respuesta);
+    }
+
+
+    // ANALIZAR ENTRENAMIENTO CON IA
+
+    @PostMapping("/{entrenamientoId}/analizar-ia")
+    public ResponseEntity<?> analizarEntrenamientoConIa(
+            @RequestHeader("Authorization") String authorization,
+            @PathVariable Long entrenamientoId
+    ) {
+
+        Usuario usuario =
+                obtenerUsuarioDesdeToken(authorization);
+
+        if (usuario == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Entrenamiento entrenamiento =
+                entrenamientoService
+                        .buscarPorId(entrenamientoId)
+                        .orElse(null);
+
+        if (entrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!entrenamientoService.perteneceUsuario(
+                entrenamiento,
+                usuario.getId()
+        )) {
+
+            return ResponseEntity.status(403).build();
+        }
+
+        EntrenamientoAnalisisResponse datosEntrenamiento =
+                entrenamientoService
+                        .obtenerAnalisisEntrenamiento(
+                                entrenamientoId
+                        );
+
+        if (datosEntrenamiento == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+
+            String analisis =
+                    openAiService
+                            .analizarEntrenamiento(
+                                    datosEntrenamiento
+                            );
+
+            AnalisisEntrenamientoIaResponse respuesta =
+                    new AnalisisEntrenamientoIaResponse(
+                            entrenamiento.getId(),
+                            entrenamiento.getNombre(),
+                            analisis
+                    );
+
+            return ResponseEntity.ok(respuesta);
+
+        } catch (IllegalStateException e) {
+
+            return ResponseEntity.status(503)
+                    .body(
+                            "El servicio de análisis con IA no está disponible en este momento"
+                    );
+        }
     }
 
 
