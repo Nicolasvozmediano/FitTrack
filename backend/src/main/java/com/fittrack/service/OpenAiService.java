@@ -102,8 +102,8 @@ public class OpenAiService {
                     volumen ni información que no aparezca
                     en los datos.
 
-                    Tu respuesta debe estar en español y ser clara,
-                    breve y útil para una persona que entrena en gimnasio.
+                    Tu respuesta debe estar en español, ser directa,
+                    breve y fácil de leer en una pantalla de móvil.
 
                     No realices diagnósticos médicos ni afirmaciones
                     sobre lesiones o enfermedades.
@@ -111,18 +111,21 @@ public class OpenAiService {
                     Devuelve exactamente estas cuatro secciones:
 
                     RESUMEN
-                    Un resumen corto del entrenamiento.
+                    Una sola frase corta.
 
                     PUNTOS POSITIVOS
-                    Entre 1 y 3 puntos concretos basados en los datos.
+                    Máximo 2 puntos breves.
 
                     A MEJORAR
-                    Entre 1 y 3 aspectos concretos.
+                    Máximo 2 puntos breves. Si faltan datos,
+                    indícalo de forma corta.
 
                     PRÓXIMA SESIÓN
-                    Una recomendación práctica y prudente.
+                    Una sola recomendación práctica de máximo
+                    dos frases.
 
                     No uses tablas.
+                    No repitas información.
                     No añadas información inventada.
                     """;
 
@@ -161,7 +164,7 @@ public class OpenAiService {
 
             body.put(
                     "max_output_tokens",
-                    900
+                    450
             );
 
 
@@ -268,17 +271,13 @@ public class OpenAiService {
         analisis.append("RESUMEN\n");
 
         analisis.append(
-                "Has registrado "
-        );
-
-        analisis.append(
                 totalEjercicios
         );
 
         analisis.append(
                 totalEjercicios == 1
-                        ? " ejercicio, "
-                        : " ejercicios, "
+                        ? " ejercicio · "
+                        : " ejercicios · "
         );
 
         analisis.append(
@@ -287,8 +286,8 @@ public class OpenAiService {
 
         analisis.append(
                 totalSeries == 1
-                        ? " serie y "
-                        : " series y "
+                        ? " serie · "
+                        : " series · "
         );
 
         analisis.append(
@@ -296,7 +295,7 @@ public class OpenAiService {
         );
 
         analisis.append(
-                " repeticiones, con un volumen total de "
+                " reps · "
         );
 
         analisis.append(
@@ -306,21 +305,23 @@ public class OpenAiService {
         );
 
         analisis.append(
-                " kg."
+                " kg de volumen."
         );
 
 
         analisis.append("\n\nPUNTOS POSITIVOS\n");
 
         analisis.append(
-                "- El entrenamiento ha quedado registrado con pesos, repeticiones y volumen, lo que permitirá comparar futuras sesiones."
+                "- Sesión registrada con peso y repeticiones."
         );
 
 
         if (pesoMaximo != null
                 && ejercicioPrincipal != null) {
 
-            analisis.append("\n- El peso máximo registrado ha sido de ");
+            analisis.append(
+                    "\n- Máximo: "
+            );
 
             analisis.append(
                     formatearNumero(
@@ -340,35 +341,19 @@ public class OpenAiService {
         }
 
 
-        if (totalRepeticiones > 0) {
-
-            analisis.append(
-                    "\n- Has completado "
-            );
-
-            analisis.append(
-                    totalRepeticiones
-            );
-
-            analisis.append(
-                    " repeticiones registradas en la sesión."
-            );
-        }
-
-
         analisis.append("\n\nA MEJORAR\n");
 
 
         if (totalEjercicios <= 1) {
 
             analisis.append(
-                    "- Solo hay un ejercicio registrado. Con estos datos no se puede valorar todavía la distribución completa de una sesión."
+                    "- Registra más ejercicios para valorar mejor la sesión."
             );
 
         } else {
 
             analisis.append(
-                    "- Conviene seguir registrando todas las series para poder valorar mejor cómo se distribuye el volumen entre ejercicios."
+                    "- Mantén todas las series registradas para comparar el volumen."
             );
         }
 
@@ -376,7 +361,7 @@ public class OpenAiService {
         if (entrenamiento.getDuracionMinutos() == null) {
 
             analisis.append(
-                    "\n- No hay duración registrada. Añadirla permitirá relacionar el volumen realizado con el tiempo total de entrenamiento."
+                    "\n- Añade la duración del entrenamiento."
             );
         }
 
@@ -384,15 +369,7 @@ public class OpenAiService {
         analisis.append("\n\nPRÓXIMA SESIÓN\n");
 
         analisis.append(
-                "Mantén el registro completo de todas las series. "
-        );
-
-        analisis.append(
-                "En la próxima sesión intenta comparar pesos y repeticiones con esta sesión antes de aumentar la carga. "
-        );
-
-        analisis.append(
-                "Si completas las mismas repeticiones con buena técnica y el esfuerzo es adecuado, podrás valorar una progresión gradual."
+                "Compara peso y repeticiones con esta sesión. Si completas las mismas reps con buena técnica, valora una progresión gradual."
         );
 
 

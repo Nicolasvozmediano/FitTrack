@@ -238,6 +238,39 @@ export default function DetalleEntrenamiento() {
 
 
   /*
+   * ABRIR ANÁLISIS CON IA
+   */
+
+  const abrirAnalisisIa =
+    () => {
+
+      if (!id) {
+        return;
+      }
+
+
+      router.push({
+
+        pathname:
+          '/analisis-entrenamiento' as any,
+
+        params: {
+
+          entrenamientoId:
+            id,
+
+          entrenamientoNombre:
+            nombre ??
+            'Entrenamiento',
+
+        },
+
+      });
+
+    };
+
+
+  /*
    * ABRIR EJERCICIO
    */
 
@@ -834,6 +867,96 @@ export default function DetalleEntrenamiento() {
         </Pressable>
 
 
+        {/* ANALIZAR ENTRENAMIENTO */}
+
+        <Pressable
+
+          style={({
+            pressed
+          }) => [
+
+            styles.aiButton,
+
+            pressed &&
+              styles.aiButtonPressed,
+
+            ejercicios.length === 0 &&
+              styles.aiButtonDisabled,
+
+          ]}
+
+          onPress={
+            abrirAnalisisIa
+          }
+
+          disabled={
+            ejercicios.length === 0
+          }
+
+        >
+
+          <View
+            style={
+              styles.aiIcon
+            }
+          >
+
+            <Text
+              style={
+                styles.aiIconText
+              }
+            >
+
+              ✦
+
+            </Text>
+
+          </View>
+
+
+          <View
+            style={
+              styles.aiButtonInfo
+            }
+          >
+
+            <Text
+              style={
+                styles.aiButtonLabel
+              }
+            >
+
+              FITTRACK AI
+
+            </Text>
+
+
+            <Text
+              style={
+                styles.aiButtonText
+              }
+            >
+
+              Analizar entrenamiento
+
+            </Text>
+
+          </View>
+
+
+          <Text
+            style={
+              styles.aiArrow
+            }
+          >
+
+            ›
+
+          </Text>
+
+        </Pressable>
+
+
         {/* CABECERA LISTA */}
 
         <View
@@ -1196,7 +1319,7 @@ const styles =
 
       marginTop: 20,
 
-      marginBottom: 25,
+      marginBottom: 12,
 
     },
 
@@ -1229,6 +1352,133 @@ const styles =
 
       fontWeight:
         '800',
+
+    },
+
+
+    aiButton: {
+
+      minHeight: 76,
+
+      backgroundColor:
+        '#151B22',
+
+      borderRadius: 18,
+
+      borderWidth: 1,
+
+      borderColor:
+        '#343E49',
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      paddingHorizontal: 15,
+
+      paddingVertical: 12,
+
+      marginBottom: 25,
+
+    },
+
+
+    aiButtonPressed: {
+
+      opacity: 0.72,
+
+    },
+
+
+    aiButtonDisabled: {
+
+      opacity: 0.4,
+
+    },
+
+
+    aiIcon: {
+
+      width: 44,
+
+      height: 44,
+
+      borderRadius: 14,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginRight: 13,
+
+    },
+
+
+    aiIconText: {
+
+      color:
+        '#0B0F14',
+
+      fontSize: 21,
+
+      fontWeight:
+        '900',
+
+    },
+
+
+    aiButtonInfo: {
+
+      flex: 1,
+
+    },
+
+
+    aiButtonLabel: {
+
+      color:
+        '#747E89',
+
+      fontSize: 9,
+
+      fontWeight:
+        '900',
+
+      letterSpacing: 1.6,
+
+    },
+
+
+    aiButtonText: {
+
+      color:
+        '#FFFFFF',
+
+      fontSize: 16,
+
+      fontWeight:
+        '900',
+
+      marginTop: 4,
+
+    },
+
+
+    aiArrow: {
+
+      color:
+        '#69737D',
+
+      fontSize: 29,
+
+      marginLeft: 8,
 
     },
 
