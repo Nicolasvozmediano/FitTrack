@@ -1,6 +1,3 @@
-
-
-
 package com.fittrack.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -622,6 +619,16 @@ public class OpenAiService {
                 "%.2f",
                 numero
         );
+    }
+
+
+    // OBTENER MODO ACTUAL DEL ANÁLISIS
+
+    public String obtenerModoAnalisis() {
+
+        return openAiEnabled
+                ? "OPENAI"
+                : "SIMULADO";
     }
 
 

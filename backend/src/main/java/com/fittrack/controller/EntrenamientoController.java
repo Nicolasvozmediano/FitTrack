@@ -7,9 +7,11 @@ import com.fittrack.dto.HistorialEntrenamientoResponse;
 import com.fittrack.dto.PerfilAnalisisResponse;
 import com.fittrack.dto.ResumenEntrenamientoResponse;
 import com.fittrack.dto.EntrenamientoUpdateRequest;
+import com.fittrack.model.AnalisisEntrenamiento;
 import com.fittrack.model.Entrenamiento;
 import com.fittrack.model.Usuario;
 import com.fittrack.security.JwtService;
+import com.fittrack.service.AnalisisEntrenamientoService;
 import com.fittrack.service.EntrenamientoService;
 import com.fittrack.service.OpenAiService;
 import com.fittrack.service.UsuarioService;
@@ -29,18 +31,21 @@ public class EntrenamientoController {
     private final UsuarioService usuarioService;
     private final JwtService jwtService;
     private final OpenAiService openAiService;
+    private final AnalisisEntrenamientoService analisisEntrenamientoService;
 
 
     public EntrenamientoController(
             EntrenamientoService entrenamientoService,
             UsuarioService usuarioService,
             JwtService jwtService,
-            OpenAiService openAiService
+            OpenAiService openAiService,
+            AnalisisEntrenamientoService analisisEntrenamientoService
     ) {
         this.entrenamientoService = entrenamientoService;
         this.usuarioService = usuarioService;
         this.jwtService = jwtService;
         this.openAiService = openAiService;
+        this.analisisEntrenamientoService = analisisEntrenamientoService;
     }
 
 
@@ -501,11 +506,22 @@ public class EntrenamientoController {
                                     perfil
                             );
 
+
+            AnalisisEntrenamiento analisisGuardado =
+                    analisisEntrenamientoService
+                            .guardarAnalisis(
+                                    entrenamiento,
+                                    analisis,
+                                    openAiService
+                                            .obtenerModoAnalisis()
+                            );
+
+
             AnalisisEntrenamientoIaResponse respuesta =
                     new AnalisisEntrenamientoIaResponse(
                             entrenamiento.getId(),
                             entrenamiento.getNombre(),
-                            analisis
+                            analisisGuardado.getAnalisis()
                     );
 
             return ResponseEntity.ok(respuesta);
