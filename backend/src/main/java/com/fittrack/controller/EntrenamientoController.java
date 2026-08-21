@@ -4,6 +4,7 @@ import com.fittrack.dto.AnalisisEntrenamientoIaResponse;
 import com.fittrack.dto.EntrenamientoAnalisisResponse;
 import com.fittrack.dto.EstadisticasUsuarioResponse;
 import com.fittrack.dto.HistorialEntrenamientoResponse;
+import com.fittrack.dto.PerfilAnalisisResponse;
 import com.fittrack.dto.ResumenEntrenamientoResponse;
 import com.fittrack.dto.EntrenamientoUpdateRequest;
 import com.fittrack.model.Entrenamiento;
@@ -484,10 +485,20 @@ public class EntrenamientoController {
 
         try {
 
+            PerfilAnalisisResponse perfil =
+                    new PerfilAnalisisResponse(
+                            usuario.getPeso(),
+                            usuario.getAlturaCm(),
+                            usuario.getObjetivo(),
+                            usuario.getNivelExperiencia()
+                    );
+
+
             String analisis =
                     openAiService
                             .analizarEntrenamiento(
-                                    datosEntrenamiento
+                                    datosEntrenamiento,
+                                    perfil
                             );
 
             AnalisisEntrenamientoIaResponse respuesta =

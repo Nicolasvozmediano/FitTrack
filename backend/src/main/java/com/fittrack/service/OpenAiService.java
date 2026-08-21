@@ -1,9 +1,13 @@
+
+
+
 package com.fittrack.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fittrack.dto.EjercicioAnalisisResponse;
 import com.fittrack.dto.EntrenamientoAnalisisResponse;
+import com.fittrack.dto.PerfilAnalisisResponse;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -54,6 +58,20 @@ public class OpenAiService {
             EntrenamientoAnalisisResponse entrenamiento
     ) {
 
+        return analizarEntrenamiento(
+                entrenamiento,
+                null
+        );
+    }
+
+
+    // ANALIZAR ENTRENAMIENTO CON PERFIL DEPORTIVO
+
+    public String analizarEntrenamiento(
+            EntrenamientoAnalisisResponse entrenamiento,
+            PerfilAnalisisResponse perfil
+    ) {
+
         if (entrenamiento == null) {
 
             throw new IllegalArgumentException(
@@ -69,7 +87,8 @@ public class OpenAiService {
         if (!openAiEnabled) {
 
             return generarAnalisisSimulado(
-                    entrenamiento
+                    entrenamiento,
+                    perfil
             );
         }
 
@@ -91,16 +110,33 @@ public class OpenAiService {
                             );
 
 
+            String datosPerfil =
+                    perfil == null
+                            ? "{}"
+                            : objectMapper
+                                    .writerWithDefaultPrettyPrinter()
+                                    .writeValueAsString(
+                                            perfil
+                                    );
+
+
             String instrucciones =
                     """
                     Eres el asistente de entrenamiento de FitTrack.
 
                     Analiza exclusivamente los datos del entrenamiento
-                    que recibes.
+                    y el perfil deportivo que recibes.
 
                     No inventes pesos, repeticiones, ejercicios,
                     volumen ni información que no aparezca
                     en los datos.
+
+                    Personaliza la recomendación según el objetivo
+                    y el nivel de experiencia cuando estén disponibles.
+
+                    El peso y la altura son solo contexto. No calcules
+                    calorías, dietas, diagnósticos ni conclusiones médicas
+                    a partir de ellos.
 
                     Tu respuesta debe estar en español, ser directa,
                     breve y fácil de leer en una pantalla de móvil.
@@ -122,7 +158,8 @@ public class OpenAiService {
 
                     PRÓXIMA SESIÓN
                     Una sola recomendación práctica de máximo
-                    dos frases.
+                    dos frases, adaptada al objetivo y nivel
+                    si están disponibles.
 
                     No uses tablas.
                     No repitas información.
@@ -132,10 +169,15 @@ public class OpenAiService {
 
             String entrada =
                     """
-                    Analiza este entrenamiento registrado en FitTrack:
+                    Analiza este entrenamiento registrado en FitTrack.
 
+                    PERFIL DEPORTIVO:
+                    %s
+
+                    ENTRENAMIENTO:
                     %s
                     """.formatted(
+                            datosPerfil,
                             datosEntrenamiento
                     );
 
@@ -221,7 +263,8 @@ public class OpenAiService {
     // GENERAR ANÁLISIS SIMULADO GRATUITO
 
     private String generarAnalisisSimulado(
-            EntrenamientoAnalisisResponse entrenamiento
+            EntrenamientoAnalisisResponse entrenamiento,
+            PerfilAnalisisResponse perfil
     ) {
 
         int totalEjercicios =
@@ -309,6 +352,24 @@ public class OpenAiService {
         );
 
 
+        if (perfil != null
+                && perfil.getObjetivo() != null
+                && !perfil.getObjetivo().isBlank()) {
+
+            analisis.append(
+                    " Objetivo: "
+            );
+
+            analisis.append(
+                    perfil.getObjetivo().trim()
+            );
+
+            analisis.append(
+                    "."
+            );
+        }
+
+
         analisis.append("\n\nPUNTOS POSITIVOS\n");
 
         analisis.append(
@@ -369,11 +430,90 @@ public class OpenAiService {
         analisis.append("\n\nPRÓXIMA SESIÓN\n");
 
         analisis.append(
-                "Compara peso y repeticiones con esta sesión. Si completas las mismas reps con buena técnica, valora una progresión gradual."
+                generarRecomendacionProximaSesion(
+                        perfil
+                )
         );
 
 
         return analisis.toString();
+    }
+
+
+    // RECOMENDACIÓN PERSONALIZADA SEGÚN PERFIL
+
+    private String generarRecomendacionProximaSesion(
+            PerfilAnalisisResponse perfil
+    ) {
+
+        String objetivo =
+                perfil != null
+                        && perfil.getObjetivo() != null
+                        ? perfil.getObjetivo()
+                                .trim()
+                                .toLowerCase(
+                                        java.util.Locale.ROOT
+                                )
+                        : "";
+
+
+        String nivel =
+                perfil != null
+                        && perfil.getNivelExperiencia() != null
+                        ? perfil.getNivelExperiencia()
+                                .trim()
+                        : null;
+
+
+        String recomendacion;
+
+
+        if (objetivo.contains("masa")
+                || objetivo.contains("muscular")) {
+
+            recomendacion =
+                    "Busca superar ligeramente esta sesión con una repetición más o una pequeña subida de carga, manteniendo buena técnica.";
+
+        } else if (objetivo.contains("fuerza")) {
+
+            recomendacion =
+                    "Compara tu carga máxima con esta sesión y progresa poco a poco cuando completes las repeticiones previstas con buena técnica.";
+
+        } else if (objetivo.contains("grasa")
+                || objetivo.contains("perder")) {
+
+            recomendacion =
+                    "Intenta mantener o mejorar el rendimiento de esta sesión mientras sigues registrando todas las series.";
+
+        } else if (objetivo.contains("rendimiento")) {
+
+            recomendacion =
+                    "Prioriza repeticiones de calidad y compara carga, repeticiones y volumen antes de aumentar la exigencia.";
+
+        } else if (objetivo.contains("mantener")
+                || objetivo.contains("forma")) {
+
+            recomendacion =
+                    "Busca repetir un rendimiento similar y mantén constancia en el registro de todas las series.";
+
+        } else {
+
+            recomendacion =
+                    "Compara peso y repeticiones con esta sesión y valora una progresión gradual si mantienes buena técnica.";
+        }
+
+
+        if (nivel != null
+                && !nivel.isBlank()) {
+
+            recomendacion +=
+                    " Nivel registrado: "
+                            + nivel
+                            + ".";
+        }
+
+
+        return recomendacion;
     }
 
 
